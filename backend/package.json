@@ -3,9 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon",
-    "build": "tsc && cp ./package.json ./dist",
     "dev": "npx kill-port 5000 && nodemon",
+    "build": "tsc && cp ./package.json ./dist",
     "start": "node dist/index.js"
   },
   "keywords": [],
@@ -29,10 +28,10 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
-    "@types/cookie-parser": "^1.4.9",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/dotenv": "^6.1.1",
-    "@types/express": "^5.0.3",
+    "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/mongoose": "^5.11.96",
     "@types/node": "^22.18.10",
