@@ -27,7 +27,13 @@ export const initializeSocket = (httpServer: HTTPServer) => {
  
       if (!rawCookie) return next(new Error("Unauthorized"));
  
-      const token = rawCookie?.split("=")?.[1]?.trim();
+      const cookies = rawCookie.split(";").reduce((acc: Record<string, string>, pair) => {
+        const [key, value] = pair.trim().split("=");
+        acc[key] = value;
+        return acc;
+      }, {});
+ 
+      const token = cookies["accessToken"];
       if (!token) return next(new Error("Unauthorized"));
  
       const decodedToken = jwt.verify(token, Env.JWT_SECRET) as {
@@ -176,4 +182,3 @@ export const emitMessageDeliveredToChatRoom = (
   const io = getIO();
   io.to(`chat:${chatId}`).emit("message:delivered", payload);
 };
- 
