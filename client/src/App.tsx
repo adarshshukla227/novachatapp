@@ -14,7 +14,8 @@ function App() {
   useEffect(() => {
     if (isAuth) return;
     isAuthStatus();
-  }, [isAuthStatus, isAuth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isAuthStatusLoading && !user) {
     return (

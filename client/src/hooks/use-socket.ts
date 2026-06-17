@@ -17,8 +17,18 @@ export const useSocket = create<SocketState>()((set, get) => ({
 
   connectSocket: () => {
     const { socket } = get();
-    console.log(socket, "socket");
-    if (socket?.connected) return;
+
+    // Agar already connected hai, dobara connect mat karo
+    if (socket?.connected) {
+      console.log("Socket already connected, skipping");
+      return;
+    }
+
+    // Agar purana socket object reference mein hai (disconnected ho ya na ho), clean karo
+    if (socket) {
+      socket.removeAllListeners();
+      socket.disconnect();
+    }
 
     const newSocket = io(BASE_URL, {
       withCredentials: true,
@@ -41,10 +51,11 @@ export const useSocket = create<SocketState>()((set, get) => ({
       set({ onlineUsers: userIds });
     });
   },
-  
+
   disconnectSocket: () => {
     const { socket } = get();
     if (socket) {
+      socket.removeAllListeners();
       socket.disconnect();
       set({ socket: null });
     }
