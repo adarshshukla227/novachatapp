@@ -48,6 +48,7 @@ app.use("/api/ai", aiRoute);
 
 if (Env.NODE_ENV === "production") {
   const clientPath = path.resolve(__dirname, "../../client/dist");
+  console.log("Serving frontend from:", clientPath);
 
   app.use(express.static(clientPath));
 

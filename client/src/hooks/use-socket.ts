@@ -1,9 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { create } from "zustand";
 
-// ✅ Always use env variable - works for both dev and production
-const BASE_URL = import.meta.env.VITE_API_URL;
-
 interface SocketState {
   socket: Socket | null;
   onlineUsers: string[];
@@ -18,19 +15,17 @@ export const useSocket = create<SocketState>()((set, get) => ({
   connectSocket: () => {
     const { socket } = get();
 
-    // Agar already connected hai, dobara connect mat karo
     if (socket?.connected) {
       console.log("Socket already connected, skipping");
       return;
     }
 
-    // Agar purana socket object reference mein hai (disconnected ho ya na ho), clean karo
     if (socket) {
       socket.removeAllListeners();
       socket.disconnect();
     }
 
-    const newSocket = io(BASE_URL, {
+    const newSocket = io({
       withCredentials: true,
       autoConnect: true,
       transports: ['websocket', 'polling'],
