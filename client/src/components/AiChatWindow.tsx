@@ -17,12 +17,13 @@ import NovaChatLogo from "@/assets/nova-ai-logo.png";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+type ContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 interface Message {
   role: "user" | "assistant";
-  content:
-    | string
-    | { type: "text"; text: string }[]
-    | { type: "image_url"; image_url: { url: string } }[];
+  content: string | ContentBlock[];
   preview?: string;
   id: string;
 }
@@ -395,7 +396,7 @@ const AiChatWindow = ({ onClose }: Props) => {
     if (typeof content === "string") return content;
     if (Array.isArray(content)) {
       const t = content.find((c) => c.type === "text");
-      return t ? (t as any).text : "";
+      return t && t.type === "text" ? t.text : "";
     }
     return "";
   };

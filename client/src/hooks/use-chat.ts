@@ -34,7 +34,7 @@ interface ChatState {
   sendMessage: (payload: CreateMessageType) => void;
  
   addNewChat: (newChat: ChatType) => void;
-  updateChatLastMessage: (chatId: string, lastMessage: MessageType, fromSender?: boolean) => void;
+  updateChatLastMessage: (chatId: string, lastMessage: MessageType) => void;
   addNewMessage: (chatId: string, message: MessageType) => void;
   removeChat: (chatId: string) => void;
  
@@ -189,7 +189,7 @@ export const useChat = create<ChatState>()((set, get) => ({
  
   // ─── UPDATED: increments unreadCount when a new message arrives ───────────────
   // for a chat that is NOT currently open
-  updateChatLastMessage: (chatId, lastMessage, fromSender = false) => {
+  updateChatLastMessage: (chatId, lastMessage) => {
     set((state) => {
       const chat = state.chats.find((c) => c._id === chatId);
       if (!chat) return state;
