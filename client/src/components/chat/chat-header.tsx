@@ -4,10 +4,11 @@ import type { ChatType } from "@/types/chat.type";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AvatarWithBadge from "../avatar-with-badge";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import GroupInfoPanel from "./GroupInfoPanel";
 import UserProfileDialog from "../user-profile-dialog";
 import type { UserType } from "@/types/auth.type";
+import { useSocket } from "@/hooks/use-socket";
 
 interface Props {
   chat: ChatType;
@@ -23,8 +24,43 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Pr
     currentUserId
   );
 
+  const { socket } = useSocket();
+  const [isTyping, setIsTyping] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
+
+  // ─── Listen for typing events ─────────────────────────────────────────────
+  useEffect(() => {
+    if (!socket || !chat._id) return;
+
+    let typingTimeout: ReturnType<typeof setTimeout>;
+
+    const handleTypingStart = ({ chatId }: { chatId: string; userId: string }) => {
+      if (chatId === chat._id) {
+        setIsTyping(true);
+        // Safety fallback — agar typing:stop na aaye toh 3 second baad khud reset
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => setIsTyping(false), 3000);
+      }
+    };
+
+    const handleTypingStop = ({ chatId }: { chatId: string; userId: string }) => {
+      if (chatId === chat._id) {
+        clearTimeout(typingTimeout);
+        setIsTyping(false);
+      }
+    };
+
+    socket.on("typing:start", handleTypingStart);
+    socket.on("typing:stop", handleTypingStop);
+
+    return () => {
+      socket.off("typing:start", handleTypingStart);
+      socket.off("typing:stop", handleTypingStop);
+      clearTimeout(typingTimeout);
+    };
+  }, [socket, chat._id]);
+  // ──────────────────────────────────────────────────────────────────────────
 
   const openPanel = () => {
     setShowGroupInfo(true);
@@ -53,6 +89,19 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Pr
     }
   };
 
+  // Subheading logic — typing ho toh "typing..." dikhao, warna normal status
+  const statusText = isGroup
+    ? `${chat.participants?.length ?? 0} members · tap for info`
+    : isTyping
+    ? "typing..."
+    : subheading;
+
+  const statusColor = isTyping
+    ? "text-green-500"
+    : isOnline
+    ? "text-green-500"
+    : "text-muted-foreground";
+
   return (
     <>
       <div className="sticky top-0 flex items-center gap-5 border-b border-border bg-card px-2 z-50">
@@ -73,10 +122,8 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Pr
 
           <div className="ml-2 cursor-pointer" onClick={handleHeaderClick}>
             <h5 className="font-semibold hover:opacity-80 transition">{name}</h5>
-            <p className={`text-sm ${isOnline ? "text-green-500" : "text-muted-foreground"}`}>
-              {isGroup
-                ? `${chat.participants?.length ?? 0} members · tap for info`
-                : subheading}
+            <p className={`text-sm ${statusColor}`}>
+              {statusText}
             </p>
           </div>
         </div>
@@ -98,7 +145,6 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Pr
         />
       )}
 
-      {/* isOnline prop hata diya — dialog ke andar directly check hota hai */}
       <UserProfileDialog
         open={showUserProfile}
         onOpenChange={setShowUserProfile}

@@ -10,6 +10,7 @@ import { Form, FormField, FormItem } from "../ui/form";
 import { Input } from "../ui/input";
 import ChatReplyBar from "./chat-reply-bar";
 import { useChat } from "@/hooks/use-chat";
+import { useSocket } from "@/hooks/use-socket";
 
 declare global {
   interface Window {
@@ -23,8 +24,8 @@ interface Props {
   currentUserId: string | null;
   replyTo: MessageType | null;
   onCancelReply: () => void;
-  smartReplyText?: string;       // NEW
-  onSmartReplyUsed?: () => void; // NEW
+  smartReplyText?: string;
+  onSmartReplyUsed?: () => void;
 }
 
 const ChatFooter = ({
@@ -40,24 +41,65 @@ const ChatFooter = ({
   });
 
   const { sendMessage, isSendingMsg } = useChat();
+  const { socket } = useSocket();
 
   const [image, setImage] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const imageInputRef = useRef<HTMLInputElement | null>(null);
   const recognitionRef = useRef<any>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
 
   const form = useForm({
     resolver: zodResolver(messageSchema),
     defaultValues: { message: "" },
   });
 
-  // NEW — smart reply text aane par input mein set karo
+  // ─── Typing emit functions ─────────────────────────────────────────────────
+  const emitTypingStart = () => {
+    if (!socket || !chatId || isTypingRef.current) return;
+    isTypingRef.current = true;
+    socket.emit("typing:start", chatId);
+  };
+
+  const emitTypingStop = () => {
+    if (!socket || !chatId || !isTypingRef.current) return;
+    isTypingRef.current = false;
+    socket.emit("typing:stop", chatId);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    form.setValue("message", e.target.value);
+
+    if (e.target.value.trim()) {
+      emitTypingStart();
+      // 2 second baad koi change nahi hua toh typing stop kar do
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        emitTypingStop();
+      }, 2000);
+    } else {
+      // Input khali ho gayi toh turant typing stop
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      emitTypingStop();
+    }
+  };
+
+  // Cleanup — component unmount hone pe ya chatId change hone pe typing stop karo
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      emitTypingStop();
+    };
+  }, [chatId, socket]);
+  // ──────────────────────────────────────────────────────────────────────────
+
+  // Smart reply text aane par input mein set karo
   useEffect(() => {
     if (smartReplyText) {
       form.setValue("message", smartReplyText);
       onSmartReplyUsed?.();
-      // Input focus karo
       const input = document.querySelector<HTMLInputElement>(
         'input[placeholder="Type new message"]'
       );
@@ -131,6 +173,10 @@ const ChatFooter = ({
       try { recognitionRef.current?.stop(); } catch {}
       setIsListening(false);
     }
+    // Message send hone pe typing stop karo
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    emitTypingStop();
+
     sendMessage({ chatId, content: values.message, image: image || undefined, replyTo });
     onCancelReply();
     handleRemoveImage();
@@ -214,6 +260,7 @@ const ChatFooter = ({
                     autoComplete="off"
                     placeholder={isListening ? "Listening... 🎤" : "Type new message"}
                     className="min-h-[40px] bg-background"
+                    onChange={handleInputChange}
                   />
                 </FormItem>
               )}
