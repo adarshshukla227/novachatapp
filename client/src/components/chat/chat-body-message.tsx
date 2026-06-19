@@ -15,7 +15,6 @@ interface Props {
 }
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-const GROQ_API_KEY = import.meta.env.VITE_GROQ_API_KEY;
 
 const ChatMessageBody = memo(({ message, onReply, onSmartReply }: Props) => {
   const { user } = useAuth();
@@ -129,41 +128,35 @@ const ChatMessageBody = memo(({ message, onReply, onSmartReply }: Props) => {
     setShowSuggestions(true);
 
     try {
-      const res = await fetch(
-        "https://api.groq.com/openai/v1/chat/completions",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${GROQ_API_KEY}`,
-          },
-          body: JSON.stringify({
-            model: "llama-3.1-8b-instant",
-            messages: [
-              {
-                role: "user",
-                content: `You are a smart reply assistant for a chat app. Generate exactly 3 short reply suggestions for this message: "${message.content}". Return ONLY a JSON array of 3 strings under 8 words each. Example: ["Sure!", "Sounds good!", "Let me check."]`,
-              },
-            ],
-            temperature: 0.7,
-            max_tokens: 100,
-          }),
-        }
-      );
-
-      const responseText = await res.text();
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          messages: [
+            {
+              role: "user",
+              content: `You are a smart reply assistant for a chat app. Generate exactly 3 short reply suggestions for this message: "${message.content}". Return ONLY a JSON array of 3 strings under 8 words each. Example: ["Sure!", "Sounds good!", "Let me check."]`,
+            },
+          ],
+        }),
+      });
 
       if (!res.ok) {
-        console.error("Groq full error:", responseText);
         setSuggestions(["Sure!", "Let me check.", "Sounds good!"]);
         return;
       }
 
-      const data = JSON.parse(responseText);
-      const rawText = data?.choices?.[0]?.message?.content || "[]";
+      const data = await res.json();
+      const rawText = data?.reply || "[]";
       const cleaned = rawText.replace(/```json|```/g, "").trim();
-      const parsed: string[] = JSON.parse(cleaned);
-      setSuggestions(parsed.slice(0, 3));
+
+      try {
+        const parsed: string[] = JSON.parse(cleaned);
+        setSuggestions(parsed.slice(0, 3));
+      } catch {
+        setSuggestions(["Sure!", "Let me check.", "Sounds good!"]);
+      }
     } catch (err) {
       console.error("Smart reply error:", err);
       setSuggestions(["Sure!", "Let me check.", "Sounds good!"]);
