@@ -1,10 +1,10 @@
 import { getOtherUserAndGroup } from "@/lib/helper";
 import { PROTECTED_ROUTES } from "@/routes/routes";
 import type { ChatType } from "@/types/chat.type";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Search, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AvatarWithBadge from "../avatar-with-badge";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import GroupInfoPanel from "./GroupInfoPanel";
 import UserProfileDialog from "../user-profile-dialog";
 import type { UserType } from "@/types/auth.type";
@@ -15,9 +15,10 @@ interface Props {
   currentUserId: string | null;
   onLeaveGroup?: (chatId: string) => void;
   onGroupInfoToggle?: (isOpen: boolean) => void;
+  onSearchQuery?: (query: string) => void;
 }
 
-const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Props) => {
+const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle, onSearchQuery }: Props) => {
   const navigate = useNavigate();
   const { name, subheading, avatar, isOnline, isGroup } = getOtherUserAndGroup(
     chat,
@@ -29,22 +30,25 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Pr
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
 
-  // ─── Listen for typing events ─────────────────────────────────────────────
+  // Search state
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // ─── Typing indicator ─────────────────────────────────────────────────────
   useEffect(() => {
     if (!socket || !chat._id) return;
-
     let typingTimeout: ReturnType<typeof setTimeout>;
 
-    const handleTypingStart = ({ chatId }: { chatId: string; userId: string }) => {
+    const handleTypingStart = ({ chatId }: { chatId: string }) => {
       if (chatId === chat._id) {
         setIsTyping(true);
-        // Safety fallback — agar typing:stop na aaye toh 3 second baad khud reset
         clearTimeout(typingTimeout);
         typingTimeout = setTimeout(() => setIsTyping(false), 3000);
       }
     };
 
-    const handleTypingStop = ({ chatId }: { chatId: string; userId: string }) => {
+    const handleTypingStop = ({ chatId }: { chatId: string }) => {
       if (chatId === chat._id) {
         clearTimeout(typingTimeout);
         setIsTyping(false);
@@ -60,7 +64,21 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Pr
       clearTimeout(typingTimeout);
     };
   }, [socket, chat._id]);
-  // ──────────────────────────────────────────────────────────────────────────
+
+  // Search input focus
+  useEffect(() => {
+    if (showSearch) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    } else {
+      setSearchValue("");
+      onSearchQuery?.("");
+    }
+  }, [showSearch]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchValue(e.target.value);
+    onSearchQuery?.(e.target.value);
+  };
 
   const openPanel = () => {
     setShowGroupInfo(true);
@@ -89,7 +107,6 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Pr
     }
   };
 
-  // Subheading logic — typing ho toh "typing..." dikhao, warna normal status
   const statusText = isGroup
     ? `${chat.participants?.length ?? 0} members · tap for info`
     : isTyping
@@ -104,14 +121,15 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Pr
 
   return (
     <>
-      <div className="sticky top-0 flex items-center gap-5 border-b border-border bg-card px-2 z-50">
-        <div className="h-14 px-4 flex items-center">
+      <div className="sticky top-0 border-b border-border bg-card z-50">
+        {/* Main header row */}
+        <div className="flex items-center gap-2 px-2 h-14">
           <ArrowLeft
-            className="w-5 h-5 inline-block lg:hidden text-muted-foreground cursor-pointer mr-2"
+            className="w-5 h-5 inline-block lg:hidden text-muted-foreground cursor-pointer mr-1 shrink-0"
             onClick={() => navigate(PROTECTED_ROUTES.CHAT)}
           />
 
-          <div className="cursor-pointer" onClick={handleHeaderClick}>
+          <div className="cursor-pointer shrink-0" onClick={handleHeaderClick}>
             <AvatarWithBadge
               name={name}
               src={avatar}
@@ -120,19 +138,53 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle }: Pr
             />
           </div>
 
-          <div className="ml-2 cursor-pointer" onClick={handleHeaderClick}>
-            <h5 className="font-semibold hover:opacity-80 transition">{name}</h5>
-            <p className={`text-sm ${statusColor}`}>
+          <div className="flex-1 min-w-0 cursor-pointer ml-1" onClick={handleHeaderClick}>
+            <h5 className="font-semibold hover:opacity-80 transition truncate">{name}</h5>
+            <p className={`text-sm truncate ${statusColor}`}>
               {statusText}
             </p>
           </div>
-        </div>
 
-        <div>
-          <div className="flex-1 text-center py-4 h-full border-b-2 border-primary font-medium text-primary">
-            Chat
+          {/* Search toggle button */}
+          <button
+            onClick={() => setShowSearch((p) => !p)}
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition shrink-0 ${
+              showSearch
+                ? "bg-primary text-primary-foreground"
+                : "hover:bg-muted text-muted-foreground"
+            }`}
+          >
+            {showSearch ? <X size={17} /> : <Search size={17} />}
+          </button>
+
+          <div className="shrink-0">
+            <div className="flex-1 text-center py-4 h-full border-b-2 border-primary font-medium text-primary">
+              Chat
+            </div>
           </div>
         </div>
+
+        {/* Search bar — slides in below header */}
+        {showSearch && (
+          <div className="px-4 pb-3 flex items-center gap-2">
+            <Search size={15} className="text-muted-foreground shrink-0" />
+            <input
+              ref={searchInputRef}
+              value={searchValue}
+              onChange={handleSearchChange}
+              placeholder="Search in conversation..."
+              className="flex-1 text-sm bg-muted rounded-full px-4 py-2 outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {searchValue && (
+              <button
+                onClick={() => { setSearchValue(""); onSearchQuery?.(""); }}
+                className="text-muted-foreground hover:text-foreground transition shrink-0"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {showGroupInfo && isGroup && (

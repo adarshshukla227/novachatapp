@@ -22,7 +22,8 @@ const SingleChat = () => {
 
   const [replyTo, setReplyTo] = useState<MessageType | null>(null);
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
-  const [smartReplyText, setSmartReplyText] = useState(""); // NEW
+  const [smartReplyText, setSmartReplyText] = useState("");
+  const [searchQuery, setSearchQuery] = useState(""); // NEW — search feature
 
   const currentUserId = user?._id || null;
   const chat = singleChat?.chat;
@@ -67,6 +68,7 @@ const SingleChat = () => {
         currentUserId={currentUserId}
         onLeaveGroup={handleLeaveGroup}
         onGroupInfoToggle={setIsGroupInfoOpen}
+        onSearchQuery={setSearchQuery}
       />
 
       <div className="flex-1 overflow-y-auto bg-background">
@@ -80,7 +82,8 @@ const SingleChat = () => {
             chatId={chatId}
             messages={messages}
             onReply={setReplyTo}
-            onSmartReply={setSmartReplyText} // NEW
+            onSmartReply={setSmartReplyText}
+            searchQuery={searchQuery}
           />
         )}
       </div>
@@ -91,8 +94,8 @@ const SingleChat = () => {
           chatId={chatId}
           currentUserId={currentUserId}
           onCancelReply={() => setReplyTo(null)}
-          smartReplyText={smartReplyText}       // NEW
-          onSmartReplyUsed={() => setSmartReplyText("")} // NEW
+          smartReplyText={smartReplyText}
+          onSmartReplyUsed={() => setSmartReplyText("")}
         />
       )}
     </div>
