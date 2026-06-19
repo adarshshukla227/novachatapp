@@ -5,7 +5,9 @@ export interface ChatDocument extends Document {
   lastMessage: mongoose.Types.ObjectId;
   isGroup: boolean;
   groupName: string;
-  groupAdmin: mongoose.Types.ObjectId | null; // NEW
+  groupAdmin: mongoose.Types.ObjectId | null;
+  groupAvatar: string | null;
+  groupDescription: string | null;
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -35,7 +37,15 @@ const chatSchema = new Schema<ChatDocument>(
     groupAdmin: {
       type: Schema.Types.ObjectId,
       ref: "User",
-      default: null, // NEW
+      default: null,
+    },
+    groupAvatar: {
+      type: String,
+      default: null,
+    },
+    groupDescription: {
+      type: String,
+      default: null,
     },
     createdBy: {
       type: Schema.Types.ObjectId,

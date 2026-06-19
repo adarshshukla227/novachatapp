@@ -6,13 +6,16 @@ import {
   getUserChatsController,
   getGroupMembersController,
   leaveGroupController,
+  updateGroupInfoController,
+  addGroupMemberController,
+  clearChatController,
 } from "../controllers/chat.controller";
 import {
   sendMessageController,
   reactMessageController,
-  markSeenController, // NEW
+  markSeenController,
 } from "../controllers/message.controller";
- 
+
 const chatRoutes = Router()
   .use(passportAuthenticateJwt)
   .post("/create", createChatController)
@@ -21,8 +24,10 @@ const chatRoutes = Router()
   .get("/all", getUserChatsController)
   .get("/:id/members", getGroupMembersController)
   .post("/:id/leave", leaveGroupController)
-  .post("/:chatId/seen", markSeenController) // NEW — mark all messages in chat as seen
-  .get("/:id", getSingleChatController);     // ye LAST mein rakho
- 
+  .patch("/:id/group-info", updateGroupInfoController)
+  .post("/:id/add-member", addGroupMemberController)
+  .delete("/:id/clear", clearChatController)
+  .post("/:chatId/seen", markSeenController)
+  .get("/:id", getSingleChatController); // ye LAST mein rakho
+
 export default chatRoutes;
- 

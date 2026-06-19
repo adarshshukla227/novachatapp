@@ -6,9 +6,13 @@ import {
   createChatService,
   getSingleChatService,
   getUserChatsService,
-  getGroupMembersService, // NEW
-  leaveGroupService,      // NEW
+  getGroupMembersService,
+  leaveGroupService,
+  updateGroupInfoService,
+  addGroupMemberService,
+  clearChatService,
 } from "../services/chat.service";
+import cloudinary from "../config/cloudinary.config";
 
 export const createChatController = asyncHandler(
   async (req: Request, res: Response) => {
@@ -46,8 +50,6 @@ export const getSingleChatController = asyncHandler(
   }
 );
 
-// ─── NEW ──────────────────────────────────────────────────────────────────────
-
 export const getGroupMembersController = asyncHandler(
   async (req: Request, res: Response) => {
     const userId = req.user?._id;
@@ -70,6 +72,65 @@ export const leaveGroupController = asyncHandler(
         ? "Group deleted (no members left)"
         : "Left group successfully",
       ...result,
+    });
+  }
+);
+
+// ─── NEW: Update group info (name, description, avatar) ──────────────────────
+export const updateGroupInfoController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?._id;
+    const { id } = chatIdSchema.parse(req.params);
+    const { groupName, groupDescription, groupAvatar } = req.body;
+
+    let avatarUrl: string | undefined;
+
+    if (groupAvatar && groupAvatar.startsWith("data:")) {
+      const uploaded = await cloudinary.uploader.upload(groupAvatar, {
+        folder: "group_avatars",
+      });
+      avatarUrl = uploaded.secure_url;
+    }
+
+    const chat = await updateGroupInfoService(id, userId, {
+      groupName,
+      groupDescription,
+      groupAvatar: avatarUrl,
+    });
+
+    return res.status(HTTPSTATUS.OK).json({
+      message: "Group info updated successfully",
+      chat,
+    });
+  }
+);
+
+// ─── NEW: Add member to group ─────────────────────────────────────────────────
+export const addGroupMemberController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?._id;
+    const { id } = chatIdSchema.parse(req.params);
+    const { memberId } = req.body;
+
+    const chat = await addGroupMemberService(id, userId, memberId);
+
+    return res.status(HTTPSTATUS.OK).json({
+      message: "Member added successfully",
+      chat,
+    });
+  }
+);
+
+// ─── NEW: Clear chat (delete all messages) ────────────────────────────────────
+export const clearChatController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const userId = req.user?._id;
+    const { id } = chatIdSchema.parse(req.params);
+
+    await clearChatService(id, userId);
+
+    return res.status(HTTPSTATUS.OK).json({
+      message: "Chat cleared successfully",
     });
   }
 );
