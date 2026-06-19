@@ -10,7 +10,6 @@ import UserProfileDialog from "../user-profile-dialog";
 import type { UserType } from "@/types/auth.type";
 import { useSocket } from "@/hooks/use-socket";
 import { useCall } from "@/hooks/use-call";
-import { useAuth } from "@/hooks/use-auth";
 
 interface Props {
   chat: ChatType;
@@ -29,7 +28,6 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle, onSe
 
   const { socket } = useSocket();
   const { uiState, startCall } = useCall();
-  const { user } = useAuth();
 
   const [isTyping, setIsTyping] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
