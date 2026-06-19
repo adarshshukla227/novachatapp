@@ -12,11 +12,36 @@ interface Props {
   message: MessageType;
   onReply: (message: MessageType) => void;
   onSmartReply?: (text: string) => void;
+  searchQuery?: string;
 }
 
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
-const ChatMessageBody = memo(({ message, onReply, onSmartReply }: Props) => {
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function highlightText(text: string, query?: string) {
+  if (!query?.trim()) return text;
+
+  const escaped = escapeRegExp(query.trim());
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+
+  return parts.map((part, i) =>
+    part.toLowerCase() === query.trim().toLowerCase() ? (
+      <mark
+        key={i}
+        className="bg-yellow-300 dark:bg-yellow-500/70 text-black rounded px-0.5"
+      >
+        {part}
+      </mark>
+    ) : (
+      <span key={i}>{part}</span>
+    )
+  );
+}
+
+const ChatMessageBody = memo(({ message, onReply, onSmartReply, searchQuery }: Props) => {
   const { user } = useAuth();
   const { reactToMessage } = useChat();
   const [showEmojiBar, setShowEmojiBar] = useState(false);
@@ -216,7 +241,9 @@ const ChatMessageBody = memo(({ message, onReply, onSmartReply }: Props) => {
                 />
               )}
 
-              {message.content && <p>{message.content}</p>}
+              {message.content && (
+                <p>{highlightText(message.content, searchQuery)}</p>
+              )}
             </div>
 
             {groupedReactions.length > 0 && (
