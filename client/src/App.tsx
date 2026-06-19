@@ -5,6 +5,7 @@ import { Spinner } from "./components/ui/spinner";
 import Logo from "./components/logo";
 import { useLocation } from "react-router-dom";
 import { isAuthRoute } from "./routes/routes";
+import CallManager from "./components/call/CallManager";
 
 function App() {
   const { pathname } = useLocation();
@@ -30,7 +31,12 @@ function App() {
     );
   }
 
-  return <AppRoutes />;
+  return (
+    <>
+      <AppRoutes />
+      <CallManager />
+    </>
+  );
 }
 
 export default App;

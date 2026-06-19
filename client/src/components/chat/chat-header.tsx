@@ -1,7 +1,7 @@
 import { getOtherUserAndGroup } from "@/lib/helper";
 import { PROTECTED_ROUTES } from "@/routes/routes";
 import type { ChatType } from "@/types/chat.type";
-import { ArrowLeft, Search, X } from "lucide-react";
+import { ArrowLeft, Search, X, Phone, Video } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AvatarWithBadge from "../avatar-with-badge";
 import { useState, useEffect, useRef } from "react";
@@ -9,6 +9,8 @@ import GroupInfoPanel from "./GroupInfoPanel";
 import UserProfileDialog from "../user-profile-dialog";
 import type { UserType } from "@/types/auth.type";
 import { useSocket } from "@/hooks/use-socket";
+import { useCall } from "@/hooks/use-call";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Props {
   chat: ChatType;
@@ -26,6 +28,9 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle, onSe
   );
 
   const { socket } = useSocket();
+  const { uiState, startCall } = useCall();
+  const { user } = useAuth();
+
   const [isTyping, setIsTyping] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
@@ -119,6 +124,19 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle, onSe
     ? "text-green-500"
     : "text-muted-foreground";
 
+  // Call is only allowed when idle (not already in a call)
+  const canCall = uiState === "idle";
+
+  const handleVoiceCall = () => {
+    if (!canCall) return;
+    startCall(chat._id, "voice", !!isGroup);
+  };
+
+  const handleVideoCall = () => {
+    if (!canCall) return;
+    startCall(chat._id, "video", !!isGroup);
+  };
+
   return (
     <>
       <div className="sticky top-0 border-b border-border bg-card z-50">
@@ -144,6 +162,34 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle, onSe
               {statusText}
             </p>
           </div>
+
+          {/* Voice call button */}
+          <button
+            onClick={handleVoiceCall}
+            disabled={!canCall}
+            title="Voice call"
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition shrink-0 ${
+              canCall
+                ? "hover:bg-muted text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground/40 cursor-not-allowed"
+            }`}
+          >
+            <Phone size={17} />
+          </button>
+
+          {/* Video call button */}
+          <button
+            onClick={handleVideoCall}
+            disabled={!canCall}
+            title="Video call"
+            className={`w-9 h-9 rounded-full flex items-center justify-center transition shrink-0 ${
+              canCall
+                ? "hover:bg-muted text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground/40 cursor-not-allowed"
+            }`}
+          >
+            <Video size={17} />
+          </button>
 
           {/* Search toggle button */}
           <button
