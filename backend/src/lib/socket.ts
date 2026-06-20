@@ -38,6 +38,15 @@ const activeCalls = new Map<string, CallSession>();
 const userActiveCallId = new Map<string, string>();
 const RING_TIMEOUT_MS = 30000;
 
+// Helper: always normalize any id-like value to a plain string
+const toIdString = (val: any): string => {
+  if (!val) return "";
+  if (typeof val === "string") return val;
+  if (val._id) return val._id.toString();
+  if (val.toString) return val.toString();
+  return String(val);
+};
+
 export const initializeSocket = (httpServer: HTTPServer) => {
   io = new Server(httpServer, {
     cors: {
@@ -64,7 +73,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
       const decodedToken = jwt.verify(token, Env.JWT_SECRET) as { userId: string };
       if (!decodedToken) return next(new Error("Unauthorized"));
 
-      socket.userId = decodedToken.userId;
+      socket.userId = toIdString(decodedToken.userId);
       next();
     } catch (error) {
       next(new Error("Internal server error"));
@@ -82,6 +91,9 @@ export const initializeSocket = (httpServer: HTTPServer) => {
     onlineUsers.set(userId, newSocketId);
     io?.emit("online:users", Array.from(onlineUsers.keys()));
     socket.join(`user:${userId}`);
+
+    console.log(`[socket] connected: userId=${userId} socketId=${newSocketId}`);
+    console.log(`[socket] onlineUsers now:`, Array.from(onlineUsers.entries()));
 
     socket.on(
       "chat:join",
@@ -106,17 +118,11 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
     // ─── Typing indicators ─────────────────────────────────────────────────
     socket.on("typing:start", (chatId: string) => {
-      socket.to(`chat:${chatId}`).emit("typing:start", {
-        chatId,
-        userId,
-      });
+      socket.to(`chat:${chatId}`).emit("typing:start", { chatId, userId });
     });
 
     socket.on("typing:stop", (chatId: string) => {
-      socket.to(`chat:${chatId}`).emit("typing:stop", {
-        chatId,
-        userId,
-      });
+      socket.to(`chat:${chatId}`).emit("typing:stop", { chatId, userId });
     });
     // ──────────────────────────────────────────────────────────────────────
 
@@ -129,25 +135,31 @@ export const initializeSocket = (httpServer: HTTPServer) => {
       ) => {
         try {
           const { callId, chatId, type } = payload;
+          console.log(`[call:initiate] from=${userId} chatId=${chatId} type=${type} callId=${callId}`);
 
           if (userActiveCallId.has(userId)) {
+            console.log(`[call:initiate] BLOCKED — caller ${userId} already in a call`);
             callback?.("You are already in a call");
             return;
           }
 
           const chat = await getChatById(chatId);
           if (!chat) {
+            console.log(`[call:initiate] FAILED — chat ${chatId} not found`);
             callback?.("Chat not found");
             return;
           }
 
           const isGroup = !!chat.isGroup;
-          const allParticipantIds: string[] = (chat.participants as any[]).map(
-            (p: any) => (p._id || p).toString()
-          );
+          const allParticipantIds: string[] = (chat.participants as any[]).map(toIdString);
+          console.log(`[call:initiate] chat participants (raw):`, allParticipantIds);
+          console.log(`[call:initiate] caller userId:`, userId);
+
           const otherParticipantIds = allParticipantIds.filter((id) => id !== userId);
+          console.log(`[call:initiate] otherParticipantIds:`, otherParticipantIds);
 
           if (otherParticipantIds.length === 0) {
+            console.log(`[call:initiate] FAILED — no other participants (mismatch likely!)`);
             callback?.("No one to call");
             return;
           }
@@ -168,6 +180,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
           };
 
           session.missedTimeout = setTimeout(() => {
+            console.log(`[call:initiate] RING_TIMEOUT hit for callId=${callId}`);
             finalizeMissedCall(callId);
           }, RING_TIMEOUT_MS);
 
@@ -176,8 +189,11 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
           let anyoneOnline = false;
           for (const pid of otherParticipantIds) {
-            if (onlineUsers.has(pid)) {
+            const isOnline = onlineUsers.has(pid);
+            console.log(`[call:initiate] checking participant ${pid} -> online=${isOnline}`);
+            if (isOnline) {
               anyoneOnline = true;
+              console.log(`[call:initiate] EMITTING call:incoming to user:${pid}`);
               io?.to(`user:${pid}`).emit("call:incoming", {
                 callId,
                 chatId,
@@ -189,6 +205,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
           }
 
           if (!anyoneOnline) {
+            console.log(`[call:initiate] NOBODY ONLINE among:`, otherParticipantIds);
             if (session.missedTimeout) clearTimeout(session.missedTimeout);
             finalizeMissedCall(callId);
             callback?.("No one is online");
@@ -197,6 +214,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
           callback?.();
         } catch (error) {
+          console.error(`[call:initiate] ERROR:`, error);
           callback?.("Failed to initiate call");
         }
       }
@@ -204,18 +222,32 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
     // Participant accepts/joins
     socket.on("call:join", (payload: { callId: string }) => {
+      console.log(`[call:join] userId=${userId} callId=${payload.callId}`);
       const session = activeCalls.get(payload.callId);
-      if (!session) return;
+      if (!session) {
+        console.log(`[call:join] FAILED — no session found for callId=${payload.callId}`);
+        return;
+      }
 
       const me = session.participants.get(userId);
-      if (!me) return;
+      if (!me) {
+        console.log(`[call:join] FAILED — userId=${userId} not in session participants`);
+        return;
+      }
 
       me.status = "joined";
       userActiveCallId.set(userId, session.callId);
 
+      if (session.missedTimeout) {
+        clearTimeout(session.missedTimeout);
+        session.missedTimeout = undefined;
+      }
+
       const alreadyJoined = Array.from(session.participants.values())
         .filter((p) => p.status === "joined" && p.userId !== userId)
         .map((p) => p.userId);
+
+      console.log(`[call:join] alreadyJoined for new joiner ${userId}:`, alreadyJoined);
 
       socket.emit("call:joined-participants", {
         callId: session.callId,
@@ -230,10 +262,19 @@ export const initializeSocket = (httpServer: HTTPServer) => {
           });
         }
       }
+
+      // Notify the original caller specifically that the call was accepted
+      // (1-to-1 caller waits on "call:accepted" to flip from outgoing -> ongoing)
+      if (session.initiatorId !== userId) {
+        io?.to(`user:${session.initiatorId}`).emit("call:accepted", {
+          callId: session.callId,
+        });
+      }
     });
 
     // Participant declines
     socket.on("call:decline", (payload: { callId: string }) => {
+      console.log(`[call:decline] userId=${userId} callId=${payload.callId}`);
       const session = activeCalls.get(payload.callId);
       if (!session) return;
 
@@ -255,6 +296,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
     // Participant leaves an ongoing call
     socket.on("call:leave", (payload: { callId: string }) => {
+      console.log(`[call:leave] userId=${userId} callId=${payload.callId}`);
       const session = activeCalls.get(payload.callId);
       if (!session) return;
 
@@ -276,6 +318,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
     // ─── WebRTC signaling relay (mesh: targeted by `to`) ──────────────────
     socket.on("call:offer", (payload: { callId: string; to: string; sdp: any }) => {
+      console.log(`[call:offer] from=${userId} to=${payload.to} callId=${payload.callId}`);
       io?.to(`user:${payload.to}`).emit("call:offer", {
         callId: payload.callId,
         from: userId,
@@ -284,6 +327,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
     });
 
     socket.on("call:answer", (payload: { callId: string; to: string; sdp: any }) => {
+      console.log(`[call:answer] from=${userId} to=${payload.to} callId=${payload.callId}`);
       io?.to(`user:${payload.to}`).emit("call:answer", {
         callId: payload.callId,
         from: userId,
@@ -327,7 +371,6 @@ export const initializeSocket = (httpServer: HTTPServer) => {
 
         io?.emit("online:users", Array.from(onlineUsers.keys()));
 
-        // End any active calls involving this user
         const callId = userActiveCallId.get(userId);
         if (callId) {
           const session = activeCalls.get(callId);
@@ -348,10 +391,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
           }
         }
 
-        console.log("socket disconnected", {
-          userId,
-          newSocketId,
-        });
+        console.log("socket disconnected", { userId, newSocketId });
       }
     });
   });
@@ -368,6 +408,8 @@ export const initializeSocket = (httpServer: HTTPServer) => {
       }
     }
 
+    console.log(`[finalizeMissedCall] callId=${callId} missedUserIds=`, missedUserIds);
+
     if (missedUserIds.length > 0) {
       try {
         const { message, chat } = await createMissedCallMessageService(
@@ -377,7 +419,7 @@ export const initializeSocket = (httpServer: HTTPServer) => {
         );
 
         const participantIds: string[] =
-          (chat?.participants as any[])?.map((p: any) => (p._id || p).toString()) || [];
+          (chat?.participants as any[])?.map(toIdString) || [];
 
         emitNewMessageToChatRoom(session.initiatorId, session.chatId, message);
         emitLastMessageToParticipants(participantIds, session.chatId, message);
@@ -444,10 +486,6 @@ export const emitNewMessageToChatRoom = (
 ) => {
   const io = getIO();
   const senderSocketId = onlineUsers.get(senderId?.toString());
-
-  console.log(senderId, "senderId");
-  console.log(senderSocketId, "sender socketid exist");
-  console.log("All online users:", Object.fromEntries(onlineUsers));
 
   if (senderSocketId) {
     io.to(`chat:${chatId}`).except(senderSocketId).emit("message:new", message);
