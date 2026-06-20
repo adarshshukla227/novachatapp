@@ -46,7 +46,6 @@ interface ChatState {
  
   updateMessageDelivered: (messageId: string) => void;
  
-  // NEW — unread count
   clearUnreadCount: (chatId: string) => void;
 }
  
@@ -104,9 +103,16 @@ export const useChat = create<ChatState>()((set, get) => ({
  
   fetchSingleChat: async (chatId: string) => {
     set({ isSingleChatLoading: true });
+ 
+    // ✅ Chat open hote hi turant badge hatao — API ka wait mat karo
+    get().clearUnreadCount(chatId);
+ 
     try {
       const { data } = await API.get(`/chat/${chatId}`);
       set({ singleChat: data });
+ 
+      // ✅ Messages seen mark karo backend mein bhi
+      get().markAsSeen(chatId);
     } catch (error: any) {
       toast.error(error?.response?.data?.message || "Failed to fetch chats");
     } finally {
@@ -187,8 +193,6 @@ export const useChat = create<ChatState>()((set, get) => ({
     });
   },
  
-  // ─── UPDATED: increments unreadCount when a new message arrives ───────────────
-  // for a chat that is NOT currently open
   updateChatLastMessage: (chatId, lastMessage) => {
     set((state) => {
       const chat = state.chats.find((c) => c._id === chatId);
@@ -196,6 +200,8 @@ export const useChat = create<ChatState>()((set, get) => ({
  
       const { user } = useAuth.getState();
       const isOwnMessage = lastMessage?.sender?._id === user?._id;
+ 
+      // ✅ Agar chat abhi open hai to badge mat badhaao
       const isChatOpen = state.singleChat?.chat?._id === chatId;
  
       let unreadCount = chat.unreadCount || 0;
@@ -213,7 +219,9 @@ export const useChat = create<ChatState>()((set, get) => ({
   },
  
   addNewMessage: (chatId, message) => {
-    const chat = get().singleChat;
+    const state = get();
+    const chat = state.singleChat;
+ 
     if (chat?.chat._id === chatId) {
       set({
         singleChat: {
@@ -221,6 +229,9 @@ export const useChat = create<ChatState>()((set, get) => ({
           messages: [...chat.messages, message],
         },
       });
+ 
+      // ✅ Naya message aaya aur chat open hai — turant seen mark karo
+      get().markAsSeen(chatId);
     }
   },
  
@@ -298,7 +309,6 @@ export const useChat = create<ChatState>()((set, get) => ({
   markAsSeen: async (chatId: string) => {
     try {
       await API.post(`/chat/${chatId}/seen`);
-      // Clear unread badge locally for instant feedback
       get().clearUnreadCount(chatId);
     } catch (error: any) {
       console.error("Failed to mark messages as seen:", error);
@@ -336,7 +346,6 @@ export const useChat = create<ChatState>()((set, get) => ({
     });
   },
  
-  // ─── NEW: Reset unread count to 0 for a chat (when opened/seen) ──────────────
   clearUnreadCount: (chatId: string) => {
     set((state) => ({
       chats: state.chats.map((c) =>
@@ -345,3 +354,4 @@ export const useChat = create<ChatState>()((set, get) => ({
     }));
   },
 }));
+ 
