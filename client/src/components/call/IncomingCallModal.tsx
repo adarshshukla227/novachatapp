@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { Phone, PhoneOff, Video } from "lucide-react";
 import { useCall } from "@/hooks/use-call";
 import AvatarWithBadge from "../avatar-with-badge";
@@ -14,8 +15,11 @@ const IncomingCallModal = ({ callerName, callerAvatar }: Props) => {
 
   const isVideo = incomingCallInfo.type === "video";
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center px-4">
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center px-4"
+      style={{ zIndex: 99999 }}
+    >
       <div className="bg-card rounded-2xl shadow-2xl w-full max-w-sm p-6 flex flex-col items-center gap-4 animate-in fade-in zoom-in-95">
         <span className="text-sm text-muted-foreground">
           Incoming {isVideo ? "video" : "voice"} call
@@ -42,7 +46,8 @@ const IncomingCallModal = ({ callerName, callerAvatar }: Props) => {
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

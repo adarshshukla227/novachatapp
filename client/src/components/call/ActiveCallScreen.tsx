@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Mic, MicOff, Video, VideoOff, PhoneOff } from "lucide-react";
 import { useCall } from "@/hooks/use-call";
 import AvatarWithBadge from "../avatar-with-badge";
@@ -31,7 +32,6 @@ function formatDuration(totalSeconds: number) {
   return `${m}:${s}`;
 }
 
-// ─── Always-on hidden audio element so sound plays even when video is off ───
 const RemoteAudioOnly = ({ stream }: { stream?: MediaStream }) => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -69,7 +69,6 @@ const RemoteVideoTile = ({
 
   return (
     <div className="relative w-full h-full bg-zinc-900 rounded-xl overflow-hidden flex items-center justify-center">
-      {/* Separate audio element — keeps playing audio even if video tile shows avatar instead */}
       <audio ref={audioRef} autoPlay />
 
       {stream && videoEnabled ? (
@@ -122,9 +121,11 @@ const ActiveCallScreen = ({ participantsMeta }: Props) => {
 
   // ─── Voice call UI ───────────────────────────────────────────────────────
   if (!isVideo) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center gap-6 px-4">
-        {/* Hidden audio elements for every remote participant */}
+    return createPortal(
+      <div
+        className="fixed inset-0 bg-black/90 flex flex-col items-center justify-center gap-6 px-4"
+        style={{ zIndex: 99999 }}
+      >
         {remoteUserIds.map((uid) => (
           <RemoteAudioOnly key={uid} stream={participants[uid].stream} />
         ))}
@@ -159,13 +160,14 @@ const ActiveCallScreen = ({ participantsMeta }: Props) => {
           onToggleCamera={toggleCamera}
           onEndCall={endCall}
         />
-      </div>
+      </div>,
+      document.body
     );
   }
 
   // ─── Video call UI ───────────────────────────────────────────────────────
-  return (
-    <div className="fixed inset-0 z-[100] bg-black flex flex-col">
+  return createPortal(
+    <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 99999 }}>
       <div className="flex-1 relative p-2">
         <div
           className={`grid gap-2 w-full h-full ${
@@ -229,7 +231,8 @@ const ActiveCallScreen = ({ participantsMeta }: Props) => {
           onEndCall={endCall}
         />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { PhoneOff } from "lucide-react";
 import { useCall } from "@/hooks/use-call";
 import AvatarWithBadge from "../avatar-with-badge";
@@ -12,8 +13,11 @@ const OutgoingCallScreen = ({ calleeName, calleeAvatar }: Props) => {
 
   if (!callData) return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/80 flex flex-col items-center justify-center gap-6 px-4">
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-black/80 flex flex-col items-center justify-center gap-6 px-4"
+      style={{ zIndex: 99999 }}
+    >
       <AvatarWithBadge name={calleeName || "Calling..."} src={calleeAvatar} />
       <h3 className="text-xl font-semibold text-white">{calleeName}</h3>
       <p className="text-sm text-gray-300 animate-pulse">
@@ -26,7 +30,8 @@ const OutgoingCallScreen = ({ calleeName, calleeAvatar }: Props) => {
       >
         <PhoneOff size={22} />
       </button>
-    </div>
+    </div>,
+    document.body
   );
 };
 
