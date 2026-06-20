@@ -24,8 +24,13 @@ const AsideBar = () => {
 
   return (
     <>
-      {/* ✅ aside-bar class CSS se aati hai — responsive width */}
-      <aside className="aside-bar bg-primary/85 shadow-sm flex flex-col items-center pt-2 pb-6 px-1">
+      <aside className="
+        w-10 shrink-0 h-full
+        bg-primary/85 shadow-sm
+        flex flex-col items-center
+        pt-2 pb-6 px-1
+        z-[9999]
+      ">
         <div className="w-full h-full flex flex-col items-center justify-between">
           <Logo
             url={PROTECTED_ROUTES.CHAT}

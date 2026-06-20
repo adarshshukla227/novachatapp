@@ -7,10 +7,12 @@ interface Props {
 
 const AppWrapper = ({ children }: Props) => {
   return (
-    <div className="h-full">
+    <div className="h-full flex">
       <AsideBar />
-      {/* ✅ main-content class CSS se aati hai — sidebar ke barabar padding */}
-      <main className="main-content">{children}</main>
+      {/* sidebar ke baad baaki sari width */}
+      <main className="flex-1 min-w-0 h-full overflow-hidden">
+        {children}
+      </main>
     </div>
   );
 };

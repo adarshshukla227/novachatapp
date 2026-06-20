@@ -27,30 +27,27 @@ const AppLayout = () => {
   return (
     <AiChatContext.Provider value={{ showAiChat, setShowAiChat }}>
       <AppWrapper>
-        <div className="h-full flex">
+        <div className="h-full flex overflow-hidden">
 
-          {/* ChatList — mobile pe full screen, desktop pe fixed panel */}
+          {/* ChatList panel */}
           <div
             className={cn(
-              "h-full flex-shrink-0 border-r border-border",
-              "w-full lg:w-80 xl:w-96",
-              chatId ? "hidden lg:flex lg:flex-col" : "flex flex-col"
+              "h-full flex-shrink-0",
+              "w-full lg:w-[379px]",
+              chatId ? "hidden lg:block" : "block"
             )}
           >
             <ChatList />
           </div>
 
-          {/* Chat window — mobile pe full screen, desktop pe flex-1 */}
+          {/* Chat window */}
           <div
             className={cn(
-              "h-full min-w-0",
-              "flex-1",
-              !chatId ? "hidden lg:flex" : "flex"
+              "flex-1 h-full min-w-0 overflow-hidden",
+              !chatId ? "hidden lg:block" : "block"
             )}
           >
-            <div className="w-full h-full">
-              <Outlet />
-            </div>
+            <Outlet />
           </div>
 
         </div>
@@ -58,10 +55,7 @@ const AppLayout = () => {
 
       {showAiChat &&
         createPortal(
-          <div
-            style={{ left: "calc(var(--aside-width-mobile) + 0px)" }}
-            className="fixed inset-0 z-[9999] bg-background flex flex-col md:left-[calc(var(--aside-width-desktop)+0px)]"
-          >
+          <div className="fixed inset-0 z-[9999] bg-background flex flex-col lg:left-[calc(44px+379px)]">
             <AiChatWindow onClose={() => setShowAiChat(false)} />
           </div>,
           document.body

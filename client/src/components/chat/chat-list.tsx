@@ -44,35 +44,22 @@ const ChatList = () => {
 
   useEffect(() => {
     if (!socket) return;
-
     const handleNewChat = (newChat: ChatType) => {
       console.log("Recieved new chat", newChat);
       addNewChat(newChat);
     };
-
     socket.on("chat:new", handleNewChat);
-
-    return () => {
-      socket.off("chat:new", handleNewChat);
-    };
+    return () => { socket.off("chat:new", handleNewChat); };
   }, [addNewChat, socket]);
 
   useEffect(() => {
     if (!socket) return;
-
-    const handleChatUpdate = (data: {
-      chatId: string;
-      lastMessage: MessageType;
-    }) => {
+    const handleChatUpdate = (data: { chatId: string; lastMessage: MessageType }) => {
       console.log("Recieved update on chat", data.lastMessage);
       updateChatLastMessage(data.chatId, data.lastMessage);
     };
-
     socket.on("chat:update", handleChatUpdate);
-
-    return () => {
-      socket.off("chat:update", handleChatUpdate);
-    };
+    return () => { socket.off("chat:update", handleChatUpdate); };
   }, [socket, updateChatLastMessage]);
 
   const onRoute = (id: string) => {
@@ -81,55 +68,36 @@ const ChatList = () => {
   };
 
   return (
-    <div
-      className="fixed inset-y-0
-      pb-20 lg:pb-0
-      lg:max-w-[379px]
-      lg:block
-      border-r
-      border-border
-      bg-sidebar
-      max-w-[calc(100%-40px)]
-      w-full
-      left-10
-      z-[98]
-    "
-    >
-      <div className="flex-col">
-        <ChatListHeader onSearch={setSearchQuery} />
+    <div className="h-full flex flex-col bg-sidebar border-r border-border">
+      <ChatListHeader onSearch={setSearchQuery} />
 
-        <div
-          className="
-         flex-1 h-[calc(100vh-100px)]
-         overflow-y-auto"
-        >
-          <div className="px-2 pb-10 pt-1 space-y-1">
-            <AiAssistantItem
-              onClick={() => setShowAiChat(true)}
-              isSelected={showAiChat}
-            />
+      <div className="flex-1 overflow-y-auto pb-4">
+        <div className="px-2 pt-1 space-y-1">
+          <AiAssistantItem
+            onClick={() => setShowAiChat(true)}
+            isSelected={showAiChat}
+          />
 
-            <div className="border-t border-border my-1 mx-1" />
+          <div className="border-t border-border my-1 mx-1" />
 
-            {isChatsLoading ? (
-              <div className="flex items-center justify-center">
-                <Spinner className="w-7 h-7" />
-              </div>
-            ) : filteredChats?.length === 0 ? (
-              <div className="flex items-center justify-center">
-                {searchQuery ? "No chat found" : "No chats created"}
-              </div>
-            ) : (
-              filteredChats?.map((chat) => (
-                <ChatListItem
-                  key={chat._id}
-                  chat={chat}
-                  currentUserId={currentUserId}
-                  onClick={() => onRoute(chat._id)}
-                />
-              ))
-            )}
-          </div>
+          {isChatsLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Spinner className="w-7 h-7" />
+            </div>
+          ) : filteredChats?.length === 0 ? (
+            <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
+              {searchQuery ? "No chat found" : "No chats created"}
+            </div>
+          ) : (
+            filteredChats?.map((chat) => (
+              <ChatListItem
+                key={chat._id}
+                chat={chat}
+                currentUserId={currentUserId}
+                onClick={() => onRoute(chat._id)}
+              />
+            ))
+          )}
         </div>
       </div>
     </div>
