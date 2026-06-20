@@ -19,7 +19,7 @@ interface CallState {
   callData: ActiveCallData | null;
 
   localStream: MediaStream | null;
-  participants: Record<string, CallParticipantInfo>; // userId -> info (remote peers)
+  participants: Record<string, CallParticipantInfo>;
 
   isMuted: boolean;
   isCameraOff: boolean;
@@ -27,7 +27,6 @@ interface CallState {
 
   incomingCallInfo: (ActiveCallData & { from?: string }) | null;
 
-  // internal (not for UI)
   _peers: Record<string, PeerEntry>;
   _pendingCandidates: Record<string, RTCIceCandidateInit[]>;
 
@@ -55,10 +54,12 @@ export const useCall = create<CallState>()((set, get) => ({
   _peers: {},
   _pendingCandidates: {},
 
-  // ─── Start a call (caller side) ─────────────────────────────────────────
   startCall: async (chatId, type, isGroup) => {
     const { socket } = useSocket.getState();
-    if (!socket) return;
+    if (!socket) {
+      console.error("[use-call] Cannot start call — socket not connected");
+      return;
+    }
 
     const callId = generateUUID();
 
@@ -92,7 +93,6 @@ export const useCall = create<CallState>()((set, get) => ({
     }
   },
 
-  // ─── Accept an incoming call (callee side) ──────────────────────────────
   acceptCall: async () => {
     const { socket } = useSocket.getState();
     const incoming = get().incomingCallInfo;
@@ -174,13 +174,17 @@ export const useCall = create<CallState>()((set, get) => ({
     }
   },
 
-  // ─── Internal: create/get a peer connection for a remote user ──────────
   _initSocketListeners: () => {
+    const { socket } = useSocket.getState();
+    if (!socket) {
+      console.log("[use-call] socket not ready yet, will retry on next mount/render");
+      return;
+    }
+
     if (listenersInitialized) return;
     listenersInitialized = true;
 
-    const { socket } = useSocket.getState();
-    if (!socket) return;
+    console.log("[use-call] registering call socket listeners on socket id:", socket.id);
 
     const createPeerConnection = (remoteUserId: string): RTCPeerConnection => {
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -286,9 +290,8 @@ export const useCall = create<CallState>()((set, get) => ({
       }
     };
 
-    // Incoming call ring
     socket.on("call:incoming", (data) => {
-      // If already in a call, auto-decline (busy) — simple v1 behavior
+      console.log("[use-call] received call:incoming", data);
       if (get().uiState !== "idle") {
         socket.emit("call:decline", { callId: data.callId });
         return;
@@ -296,21 +299,19 @@ export const useCall = create<CallState>()((set, get) => ({
       set({ uiState: "incoming", incomingCallInfo: data });
     });
 
-    // I joined — server tells me who is already in
     socket.on("call:joined-participants", async ({ participants }: { participants: string[] }) => {
+      console.log("[use-call] call:joined-participants", participants);
       for (const remoteUserId of participants) {
         await makeOfferTo(remoteUserId);
       }
     });
 
-    // Someone else joined after me — I wait for their offer (they will offer to me too,
-    // since server's call:joined-participants only fires for the NEW joiner;
-    // for symmetry, the new joiner offers to everyone already in, including me)
     socket.on("call:participant-joined", () => {
-      // No action needed here; the new participant initiates offers to existing ones.
+      // no-op; new joiner initiates offers
     });
 
     socket.on("call:offer", async ({ from, sdp }) => {
+      console.log("[use-call] received call:offer from", from);
       const pc = getOrCreatePeer(from);
       await pc.setRemoteDescription(sdp);
 
@@ -340,6 +341,7 @@ export const useCall = create<CallState>()((set, get) => ({
     });
 
     socket.on("call:answer", async ({ from, sdp }) => {
+      console.log("[use-call] received call:answer from", from);
       const peer = get()._peers[from];
       if (!peer) return;
       await peer.pc.setRemoteDescription(sdp);
@@ -385,11 +387,12 @@ export const useCall = create<CallState>()((set, get) => ({
     });
 
     socket.on("call:accepted", () => {
-      // For 1-to-1 caller side, once accepted, move to ongoing (join flow also fires call:joined-participants)
+      console.log("[use-call] received call:accepted");
       set({ uiState: "ongoing", callStartedAt: Date.now() });
     });
 
     socket.on("call:declined", () => {
+      console.log("[use-call] received call:declined");
       get()._cleanup();
     });
 
@@ -406,13 +409,11 @@ export const useCall = create<CallState>()((set, get) => ({
     });
 
     socket.on("call:ended", () => {
+      console.log("[use-call] received call:ended");
       get()._cleanup();
     });
 
     socket.on("call:missed-summary", () => {
-      // Chat list / message list will reflect this via a separate chat message
-      // (sent from backend as a normal message), so just ensure call UI resets
-      // for anyone who was still "ringing".
       if (get().uiState === "outgoing" || get().uiState === "incoming") {
         get()._cleanup();
       }

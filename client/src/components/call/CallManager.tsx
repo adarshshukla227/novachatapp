@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useCall } from "@/hooks/use-call";
 import { useChat } from "@/hooks/use-chat";
+import { useSocket } from "@/hooks/use-socket";
 import IncomingCallModal from "./IncomingCallModal";
 import OutgoingCallScreen from "./OutgoingCallScreen";
 import ActiveCallScreen from "./ActiveCallScreen";
@@ -8,10 +9,13 @@ import ActiveCallScreen from "./ActiveCallScreen";
 const CallManager = () => {
   const { uiState, callData, incomingCallInfo, _initSocketListeners } = useCall();
   const { chats } = useChat();
+  const { socket } = useSocket(); // subscribe so this re-renders once socket connects
 
   useEffect(() => {
-    _initSocketListeners();
-  }, [_initSocketListeners]);
+    if (socket) {
+      _initSocketListeners();
+    }
+  }, [socket, _initSocketListeners]);
 
   const relevantChatId = callData?.chatId || incomingCallInfo?.chatId;
   const chat = chats.find((c) => c._id === relevantChatId);
