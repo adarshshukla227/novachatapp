@@ -6,7 +6,7 @@ import type { MessageType } from "@/types/chat.type";
 import AvatarWithBadge from "../avatar-with-badge";
 import { formatChatTime } from "@/lib/helper";
 import { Button } from "../ui/button";
-import { ReplyIcon, Check, CheckCheck, Clock, SmilePlus, Sparkles } from "lucide-react";
+import { ReplyIcon, Check, CheckCheck, Clock, SmilePlus, Sparkles, Phone, Video } from "lucide-react";
 
 interface Props {
   message: MessageType;
@@ -41,6 +41,14 @@ function highlightText(text: string, query?: string) {
   );
 }
 
+// ─── Missed call detection ──────────────────────────────────────────────────
+function getMissedCallType(content?: string): "voice" | "video" | null {
+  if (!content) return null;
+  if (content.includes("📹") && content.toLowerCase().includes("missed video call")) return "video";
+  if (content.includes("📞") && content.toLowerCase().includes("missed voice call")) return "voice";
+  return null;
+}
+
 const ChatMessageBody = memo(({ message, onReply, onSmartReply, searchQuery }: Props) => {
   const { user } = useAuth();
   const { reactToMessage } = useChat();
@@ -59,6 +67,8 @@ const ChatMessageBody = memo(({ message, onReply, onSmartReply, searchQuery }: P
     message.replyTo?.sender?._id === userId
       ? "You"
       : message.replyTo?.sender?.name;
+
+  const missedCallType = getMissedCallType(message.content);
 
   useEffect(() => {
     if (!showEmojiBar) return;
@@ -195,6 +205,32 @@ const ChatMessageBody = memo(({ message, onReply, onSmartReply, searchQuery }: P
     setShowSuggestions(false);
     setSuggestions([]);
   };
+
+  // ─── Missed call: render as a centered grey pill (WhatsApp style) ────────
+  if (missedCallType) {
+    const callTypeLabel = missedCallType === "video" ? "video" : "voice";
+    const missedCallText = isCurrentUser
+      ? "You called — no answer"
+      : `${senderName} called — no answer`;
+
+    return (
+      <div className="flex justify-center py-2 px-4">
+        <div className="flex items-center gap-2 bg-muted text-muted-foreground text-xs px-3 py-1.5 rounded-full shadow-sm">
+          {missedCallType === "video" ? (
+            <Video size={13} className="text-red-500" />
+          ) : (
+            <Phone size={13} className="text-red-500" />
+          )}
+          <span>
+            {missedCallText} <span className="opacity-70">({callTypeLabel})</span>
+          </span>
+          <span className="text-muted-foreground/70">
+            · {formatChatTime(message?.createdAt)}
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={containerClass}>
