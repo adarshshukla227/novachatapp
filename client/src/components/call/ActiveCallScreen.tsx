@@ -10,7 +10,7 @@ interface ParticipantMeta {
 }
 
 interface Props {
-  participantsMeta: ParticipantMeta[]; // names/avatars resolved by caller (from chat.participants)
+  participantsMeta: ParticipantMeta[];
 }
 
 function useElapsedSeconds(startedAt: number | null) {
@@ -31,6 +31,19 @@ function formatDuration(totalSeconds: number) {
   return `${m}:${s}`;
 }
 
+// ─── Always-on hidden audio element so sound plays even when video is off ───
+const RemoteAudioOnly = ({ stream }: { stream?: MediaStream }) => {
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (audioRef.current && stream) {
+      audioRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  return <audio ref={audioRef} autoPlay />;
+};
+
 const RemoteVideoTile = ({
   stream,
   name,
@@ -43,17 +56,30 @@ const RemoteVideoTile = ({
   videoEnabled: boolean;
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
     }
+    if (audioRef.current && stream) {
+      audioRef.current.srcObject = stream;
+    }
   }, [stream]);
 
   return (
     <div className="relative w-full h-full bg-zinc-900 rounded-xl overflow-hidden flex items-center justify-center">
+      {/* Separate audio element — keeps playing audio even if video tile shows avatar instead */}
+      <audio ref={audioRef} autoPlay />
+
       {stream && videoEnabled ? (
-        <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full h-full object-cover"
+        />
       ) : (
         <AvatarWithBadge name={name} src={avatar} />
       )}
@@ -98,6 +124,11 @@ const ActiveCallScreen = ({ participantsMeta }: Props) => {
   if (!isVideo) {
     return (
       <div className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center gap-6 px-4">
+        {/* Hidden audio elements for every remote participant */}
+        {remoteUserIds.map((uid) => (
+          <RemoteAudioOnly key={uid} stream={participants[uid].stream} />
+        ))}
+
         <div className="flex flex-wrap items-center justify-center gap-6">
           {remoteUserIds.length === 0 ? (
             <p className="text-gray-300 text-sm">Connecting...</p>

@@ -396,12 +396,26 @@ export const useCall = create<CallState>()((set, get) => ({
       get()._cleanup();
     });
 
+    // ─── FIX: if the other participant declined and nobody else is left, end the call ───
     socket.on("call:participant-declined", ({ userId }) => {
+      console.log("[use-call] call:participant-declined", userId);
       removePeer(userId);
+
+      const remainingPeers = Object.keys(get()._peers).filter((id) => id !== userId);
+      if (remainingPeers.length === 0) {
+        get()._cleanup();
+      }
     });
 
+    // ─── FIX: if the other participant left and nobody else is left, end the call ───
     socket.on("call:participant-left", ({ userId }) => {
+      console.log("[use-call] call:participant-left", userId);
       removePeer(userId);
+
+      const remainingPeers = Object.keys(get()._peers).filter((id) => id !== userId);
+      if (remainingPeers.length === 0) {
+        get()._cleanup();
+      }
     });
 
     socket.on("call:cancelled", () => {
