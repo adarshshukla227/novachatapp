@@ -5,29 +5,26 @@ class CallSoundManager {
  
   constructor() {
     if (typeof window !== "undefined") {
-      this.dialingAudio = new Audio("/sound/dialing.mp3");
+      this.dialingAudio = new Audio("/sound/dialing.wav");
       this.dialingAudio.loop = true;
  
-      this.incomingAudio = new Audio("/sound/incoming.mp3");
+      this.incomingAudio = new Audio("/sound/incoming.wav");
       this.incomingAudio.loop = true;
  
-      this.callEndAudio = new Audio("/sound/callEnd.mp3");
+      this.callEndAudio = new Audio("/sound/callEnd.wav");
     }
   }
  
-  // Jab tum call karo (caller side)
   playDialing() {
     this.stopAll();
     this.dialingAudio?.play().catch(() => {});
   }
  
-  // Jab tumhe call aaye (receiver side)
   playIncoming() {
     this.stopAll();
     this.incomingAudio?.play().catch(() => {});
   }
  
-  // Jab call cut ho (dono side)
   playCallEnd() {
     this.stopAll();
     this.callEndAudio?.play().catch(() => {});
