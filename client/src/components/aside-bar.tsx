@@ -27,55 +27,36 @@ const AsideBar = () => {
     <>
       <aside
         className="
-    top-0 fixed inset-y-0
-    w-11 left-0 z-[9999]
-    h-svh bg-primary/85 shadow-sm"
+          fixed inset-y-0 left-0 z-[9999]
+          w-14 md:w-11
+          h-svh bg-primary/85 shadow-sm
+          flex flex-col items-center
+          pt-2 pb-6 px-1
+        "
       >
-        <div
-          className="
-         w-full h-full px-1 pt-1 pb-6 flex flex-col
-         items-center justify-between"
-        >
+        <div className="w-full h-full flex flex-col items-center justify-between">
+          {/* Logo */}
           <Logo
             url={PROTECTED_ROUTES.CHAT}
-            imgClass="size-7"
+            imgClass="size-8 md:size-7"
             textClass="text-white"
             showText={false}
           />
 
-          <div
-            className="
-           flex flex-col items-center gap-3
-          "
-          >
+          {/* Bottom actions */}
+          <div className="flex flex-col items-center gap-4">
+            {/* Theme toggle */}
             <Button
               variant="outline"
               size="icon"
-              className="border-0 rounded-full"
+              className="border-0 rounded-full w-9 h-9 md:w-8 md:h-8"
               onClick={() => setTheme(theme === "light" ? "dark" : "light")}
             >
-              <Sun
-                className="
-                h-[1.2rem]
-                w-[1.2rem]
-                scale-100
-                rotate-0
-                transition-all dark:scale-0 dark:-rotate-90
-              "
-              />
-              <Moon
-                className="
-               absolute
-                h-[1.2rem]
-                w-[1.2rem]
-                scale-0
-                rotate-90
-                transition-all dark:scale-100
-                dark:-rotate-0
-                "
-              />
+              <Sun className="h-5 w-5 md:h-[1.2rem] md:w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
+              <Moon className="absolute h-5 w-5 md:h-[1.2rem] md:w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:-rotate-0" />
             </Button>
 
+            {/* Avatar dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <div role="button">
@@ -91,8 +72,6 @@ const AsideBar = () => {
                 className="w-48 rounded-lg z-[99999]"
                 align="end"
               >
-
-                {/* NEW — My Account option */}
                 <DropdownMenuItem
                   onClick={() => setShowMyAccount(true)}
                   className="cursor-pointer"
@@ -100,9 +79,11 @@ const AsideBar = () => {
                   <User className="w-4 h-4 mr-2" />
                   My Account
                 </DropdownMenuItem>
-
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  onClick={logout}
+                  className="cursor-pointer text-destructive focus:text-destructive"
+                >
                   Logout
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -111,11 +92,7 @@ const AsideBar = () => {
         </div>
       </aside>
 
-      {/* My Account Dialog */}
-      <MyAccountDialog
-        open={showMyAccount}
-        onOpenChange={setShowMyAccount}
-      />
+      <MyAccountDialog open={showMyAccount} onOpenChange={setShowMyAccount} />
     </>
   );
 };

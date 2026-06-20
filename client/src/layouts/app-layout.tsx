@@ -27,33 +27,48 @@ const AppLayout = () => {
   return (
     <AiChatContext.Provider value={{ showAiChat, setShowAiChat }}>
       <AppWrapper>
-        <div className="h-full">
-          {/* ChatList */}
-          <div className={cn(chatId ? "hidden lg:block" : "block")}>
-            <ChatList />
-          </div>
+        <div className="h-full flex">
+
+          {/* 
+            ChatList panel:
+            - Mobile: full width, chat open hone par hide
+            - Desktop: fixed width sidebar always visible
+          */}
           <div
             className={cn(
-              "lg:!pl-95 pl-7",
-              !chatId ? "hidden lg:block" : "block"
+              "w-full lg:w-80 xl:w-96 h-full flex-shrink-0",
+              "border-r border-border",
+              chatId ? "hidden lg:flex" : "flex"
             )}
           >
-            <Outlet />
+            <div className="w-full h-full">
+              <ChatList />
+            </div>
           </div>
+
+          {/* 
+            Chat window / outlet:
+            - Mobile: full width, sirf chat open hone par dikhao
+            - Desktop: baaki sari width le lo
+          */}
+          <div
+            className={cn(
+              "flex-1 h-full min-w-0",
+              !chatId ? "hidden lg:flex" : "flex"
+            )}
+          >
+            <div className="w-full h-full">
+              <Outlet />
+            </div>
+          </div>
+
         </div>
       </AppWrapper>
 
-      {/*
-        AI Chat Window — rendered via PORTAL directly into document.body.
-        This completely escapes any stacking context / z-index issues
-        from parent layouts. It will always sit on top of everything,
-        and will never receive clicks meant for the normal chat.
-      */}
+      {/* AI Chat Window — portal se render hota hai */}
       {showAiChat &&
         createPortal(
-          <div
-            className="fixed inset-0 z-[9999] bg-background flex flex-col lg:left-[calc(40px+379px)]"
-          >
+          <div className="fixed inset-0 z-[9999] bg-background flex flex-col lg:left-[calc(44px+384px)]">
             <AiChatWindow onClose={() => setShowAiChat(false)} />
           </div>,
           document.body
