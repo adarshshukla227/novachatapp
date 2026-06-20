@@ -12,7 +12,13 @@ export interface MessageDocument extends Document {
   image?: string;
   replyTo?: mongoose.Types.ObjectId;
   reactions: ReactionType[];
-  status: "sent" | "delivered" | "seen"; // NEW
+  status: "sent" | "delivered" | "seen";
+  // ─── Call fields ───────────────────────────────────────────────────────────
+  messageType: "text" | "call";
+  callType?: "voice" | "video";
+  callStatus?: "missed" | "connected" | "declined" | "offline";
+  callDuration?: number; // seconds mein
+  // ──────────────────────────────────────────────────────────────────────────
   createdAt: Date;
   updatedAt: Date;
 }
@@ -52,12 +58,37 @@ const messageSchema = new Schema<MessageDocument>(
       type: [reactionSchema],
       default: [],
     },
-    // NEW — message status for WhatsApp-style ticks
+    // WhatsApp-style ticks
     status: {
       type: String,
       enum: ["sent", "delivered", "seen"],
       default: "sent",
     },
+    // ─── Call fields ─────────────────────────────────────────────────────────
+    messageType: {
+      type: String,
+      enum: ["text", "call"],
+      default: "text",
+    },
+    callType: {
+      type: String,
+      enum: ["voice", "video"],
+      default: null,
+    },
+    callStatus: {
+      type: String,
+      // missed   → ring timeout ya koi na utha
+      // connected → call connected aur properly end hui
+      // declined  → receiver ne cut kiya
+      // offline   → jisko call ki wo online nahi tha
+      enum: ["missed", "connected", "declined", "offline"],
+      default: null,
+    },
+    callDuration: {
+      type: Number, // seconds
+      default: 0,
+    },
+    // ─────────────────────────────────────────────────────────────────────────
   },
   {
     timestamps: true,

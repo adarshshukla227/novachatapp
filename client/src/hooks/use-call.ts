@@ -2,34 +2,35 @@ import { create } from "zustand";
 import { useAuth } from "./use-auth";
 import { useSocket } from "./use-socket";
 import { generateUUID } from "@/lib/helper";
+import { callSounds } from "@/lib/callSounds";
 import type { CallType, CallUIState, ActiveCallData, CallParticipantInfo } from "@/types/call.type";
-
+ 
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
 ];
-
+ 
 interface PeerEntry {
   pc: RTCPeerConnection;
   makingOffer: boolean;
 }
-
+ 
 interface CallState {
   uiState: CallUIState;
   callData: ActiveCallData | null;
-
+ 
   localStream: MediaStream | null;
   participants: Record<string, CallParticipantInfo>;
-
+ 
   isMuted: boolean;
   isCameraOff: boolean;
   callStartedAt: number | null;
-
+ 
   incomingCallInfo: (ActiveCallData & { from?: string }) | null;
-
+ 
   _peers: Record<string, PeerEntry>;
   _pendingCandidates: Record<string, RTCIceCandidateInit[]>;
-
+ 
   startCall: (chatId: string, type: CallType, isGroup: boolean) => Promise<void>;
   acceptCall: () => Promise<void>;
   declineCall: () => void;
@@ -39,9 +40,9 @@ interface CallState {
   _initSocketListeners: () => void;
   _cleanup: () => void;
 }
-
+ 
 let listenersInitialized = false;
-
+ 
 export const useCall = create<CallState>()((set, get) => ({
   uiState: "idle",
   callData: null,
@@ -53,22 +54,22 @@ export const useCall = create<CallState>()((set, get) => ({
   incomingCallInfo: null,
   _peers: {},
   _pendingCandidates: {},
-
+ 
   startCall: async (chatId, type, isGroup) => {
     const { socket } = useSocket.getState();
     if (!socket) {
       console.error("[use-call] Cannot start call — socket not connected");
       return;
     }
-
+ 
     const callId = generateUUID();
-
+ 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: type === "video",
       });
-
+ 
       set({
         localStream: stream,
         uiState: "outgoing",
@@ -76,13 +77,17 @@ export const useCall = create<CallState>()((set, get) => ({
         isMuted: false,
         isCameraOff: false,
       });
-
+ 
+      // ✅ Dialing sound — tum call kar rahe ho
+      callSounds.playDialing();
+ 
       socket.emit(
         "call:initiate",
         { callId, chatId, type },
         (err?: string) => {
           if (err) {
             console.error("Call initiate failed:", err);
+            callSounds.playCallEnd();
             get()._cleanup();
           }
         }
@@ -92,18 +97,21 @@ export const useCall = create<CallState>()((set, get) => ({
       get()._cleanup();
     }
   },
-
+ 
   acceptCall: async () => {
     const { socket } = useSocket.getState();
     const incoming = get().incomingCallInfo;
     if (!socket || !incoming) return;
-
+ 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: incoming.type === "video",
       });
-
+ 
+      // ✅ Incoming ring band karo, connect sound bajao
+      callSounds.stopAll();
+ 
       set({
         localStream: stream,
         uiState: "ongoing",
@@ -113,40 +121,48 @@ export const useCall = create<CallState>()((set, get) => ({
         isMuted: false,
         isCameraOff: false,
       });
-
+ 
       socket.emit("call:join", { callId: incoming.callId });
     } catch (error) {
       console.error("Failed to get media devices:", error);
+      callSounds.stopAll();
       socket.emit("call:decline", { callId: incoming.callId });
       set({ incomingCallInfo: null, uiState: "idle" });
     }
   },
-
+ 
   declineCall: () => {
     const { socket } = useSocket.getState();
     const incoming = get().incomingCallInfo;
     if (!socket || !incoming) return;
-
+ 
+    // ✅ Ring band karo, end sound bajao
+    callSounds.playCallEnd();
+ 
     socket.emit("call:decline", { callId: incoming.callId });
     set({ incomingCallInfo: null, uiState: "idle" });
   },
-
+ 
   endCall: () => {
     const { socket } = useSocket.getState();
     const { callData } = get();
     if (socket && callData) {
       socket.emit("call:leave", { callId: callData.callId });
     }
+ 
+    // ✅ Call end sound
+    callSounds.playCallEnd();
+ 
     get()._cleanup();
   },
-
+ 
   toggleMute: () => {
     const { localStream, isMuted, callData } = get();
     if (!localStream) return;
     const newMuted = !isMuted;
     localStream.getAudioTracks().forEach((track) => (track.enabled = !newMuted));
     set({ isMuted: newMuted });
-
+ 
     const { socket } = useSocket.getState();
     if (socket && callData) {
       socket.emit("call:media-state", {
@@ -156,14 +172,14 @@ export const useCall = create<CallState>()((set, get) => ({
       });
     }
   },
-
+ 
   toggleCamera: () => {
     const { localStream, isCameraOff, callData } = get();
     if (!localStream) return;
     const newCameraOff = !isCameraOff;
     localStream.getVideoTracks().forEach((track) => (track.enabled = !newCameraOff));
     set({ isCameraOff: newCameraOff });
-
+ 
     const { socket } = useSocket.getState();
     if (socket && callData) {
       socket.emit("call:media-state", {
@@ -173,27 +189,27 @@ export const useCall = create<CallState>()((set, get) => ({
       });
     }
   },
-
+ 
   _initSocketListeners: () => {
     const { socket } = useSocket.getState();
     if (!socket) {
       console.log("[use-call] socket not ready yet, will retry on next mount/render");
       return;
     }
-
+ 
     if (listenersInitialized) return;
     listenersInitialized = true;
-
+ 
     console.log("[use-call] registering call socket listeners on socket id:", socket.id);
-
+ 
     const createPeerConnection = (remoteUserId: string): RTCPeerConnection => {
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-
+ 
       const { localStream } = get();
       localStream?.getTracks().forEach((track) => {
         pc.addTrack(track, localStream);
       });
-
+ 
       pc.onicecandidate = (event) => {
         if (event.candidate) {
           const { callData } = get();
@@ -206,7 +222,7 @@ export const useCall = create<CallState>()((set, get) => ({
           }
         }
       };
-
+ 
       pc.ontrack = (event) => {
         set((state) => ({
           participants: {
@@ -222,7 +238,7 @@ export const useCall = create<CallState>()((set, get) => ({
           },
         }));
       };
-
+ 
       pc.onconnectionstatechange = () => {
         set((state) => ({
           participants: {
@@ -237,25 +253,25 @@ export const useCall = create<CallState>()((set, get) => ({
             },
           },
         }));
-
+ 
         if (pc.connectionState === "failed" || pc.connectionState === "closed") {
           removePeer(remoteUserId);
         }
       };
-
+ 
       set((state) => ({
         _peers: { ...state._peers, [remoteUserId]: { pc, makingOffer: false } },
       }));
-
+ 
       return pc;
     };
-
+ 
     const getOrCreatePeer = (remoteUserId: string): RTCPeerConnection => {
       const existing = get()._peers[remoteUserId];
       if (existing) return existing.pc;
       return createPeerConnection(remoteUserId);
     };
-
+ 
     const removePeer = (remoteUserId: string) => {
       const peer = get()._peers[remoteUserId];
       if (peer) {
@@ -269,14 +285,14 @@ export const useCall = create<CallState>()((set, get) => ({
         });
       }
     };
-
+ 
     const makeOfferTo = async (remoteUserId: string) => {
       const { callData } = get();
       if (!callData) return;
       const pc = getOrCreatePeer(remoteUserId);
       const peerEntry = get()._peers[remoteUserId];
       if (peerEntry) peerEntry.makingOffer = true;
-
+ 
       try {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -289,32 +305,34 @@ export const useCall = create<CallState>()((set, get) => ({
         if (peerEntry) peerEntry.makingOffer = false;
       }
     };
-
+ 
+    // ✅ Incoming call — ring sound bajao
     socket.on("call:incoming", (data) => {
       console.log("[use-call] received call:incoming", data);
       if (get().uiState !== "idle") {
         socket.emit("call:decline", { callId: data.callId });
         return;
       }
+      callSounds.playIncoming();
       set({ uiState: "incoming", incomingCallInfo: data });
     });
-
+ 
     socket.on("call:joined-participants", async ({ participants }: { participants: string[] }) => {
       console.log("[use-call] call:joined-participants", participants);
       for (const remoteUserId of participants) {
         await makeOfferTo(remoteUserId);
       }
     });
-
+ 
     socket.on("call:participant-joined", () => {
       // no-op; new joiner initiates offers
     });
-
+ 
     socket.on("call:offer", async ({ from, sdp }) => {
       console.log("[use-call] received call:offer from", from);
       const pc = getOrCreatePeer(from);
       await pc.setRemoteDescription(sdp);
-
+ 
       const pending = get()._pendingCandidates[from];
       if (pending?.length) {
         for (const c of pending) {
@@ -326,10 +344,10 @@ export const useCall = create<CallState>()((set, get) => ({
           return { _pendingCandidates: p };
         });
       }
-
+ 
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-
+ 
       const { callData } = get();
       if (callData) {
         socket.emit("call:answer", {
@@ -339,13 +357,13 @@ export const useCall = create<CallState>()((set, get) => ({
         });
       }
     });
-
+ 
     socket.on("call:answer", async ({ from, sdp }) => {
       console.log("[use-call] received call:answer from", from);
       const peer = get()._peers[from];
       if (!peer) return;
       await peer.pc.setRemoteDescription(sdp);
-
+ 
       const pending = get()._pendingCandidates[from];
       if (pending?.length) {
         for (const c of pending) {
@@ -358,7 +376,7 @@ export const useCall = create<CallState>()((set, get) => ({
         });
       }
     });
-
+ 
     socket.on("call:ice-candidate", async ({ from, candidate }) => {
       const peer = get()._peers[from];
       if (peer?.pc.remoteDescription) {
@@ -372,7 +390,7 @@ export const useCall = create<CallState>()((set, get) => ({
         }));
       }
     });
-
+ 
     socket.on("call:media-state", ({ from, audioEnabled, videoEnabled }) => {
       set((state) => ({
         participants: {
@@ -385,60 +403,78 @@ export const useCall = create<CallState>()((set, get) => ({
         },
       }));
     });
-
+ 
+    // ✅ Call accept ho gayi — dialing band, UI ongoing
     socket.on("call:accepted", () => {
       console.log("[use-call] received call:accepted");
+      callSounds.stopAll();
       set({ uiState: "ongoing", callStartedAt: Date.now() });
     });
-
+ 
     socket.on("call:declined", () => {
       console.log("[use-call] received call:declined");
+      callSounds.playCallEnd();
       get()._cleanup();
     });
-
-    // ─── FIX: if the other participant declined and nobody else is left, end the call ───
+ 
     socket.on("call:participant-declined", ({ userId }) => {
       console.log("[use-call] call:participant-declined", userId);
       removePeer(userId);
-
+ 
       const remainingPeers = Object.keys(get()._peers).filter((id) => id !== userId);
       if (remainingPeers.length === 0) {
+        callSounds.playCallEnd();
         get()._cleanup();
       }
     });
-
-    // ─── FIX: if the other participant left and nobody else is left, end the call ───
+ 
     socket.on("call:participant-left", ({ userId }) => {
       console.log("[use-call] call:participant-left", userId);
       removePeer(userId);
-
+ 
       const remainingPeers = Object.keys(get()._peers).filter((id) => id !== userId);
       if (remainingPeers.length === 0) {
+        callSounds.playCallEnd();
         get()._cleanup();
       }
     });
-
+ 
     socket.on("call:cancelled", () => {
+      callSounds.playCallEnd();
       get()._cleanup();
     });
-
+ 
+    // ✅ Call end — sound bajao
     socket.on("call:ended", () => {
       console.log("[use-call] received call:ended");
+      callSounds.playCallEnd();
       get()._cleanup();
     });
-
+ 
     socket.on("call:missed-summary", () => {
       if (get().uiState === "outgoing" || get().uiState === "incoming") {
+        callSounds.playCallEnd();
         get()._cleanup();
       }
     });
+ 
+    // ✅ Recipient offline — dialing band karo, end sound bajao
+    socket.on("call:recipient-offline", () => {
+      console.log("[use-call] recipient is offline");
+      callSounds.playCallEnd();
+      get()._cleanup();
+    });
   },
-
+ 
   _cleanup: () => {
     const { localStream, _peers } = get();
+ 
+    // ✅ Cleanup mein bhi sounds band karo
+    callSounds.stopAll();
+ 
     localStream?.getTracks().forEach((track) => track.stop());
     Object.values(_peers).forEach((p) => p.pc.close());
-
+ 
     set({
       uiState: "idle",
       callData: null,
@@ -453,3 +489,4 @@ export const useCall = create<CallState>()((set, get) => ({
     });
   },
 }));
+ 

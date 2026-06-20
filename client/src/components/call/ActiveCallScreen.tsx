@@ -168,7 +168,10 @@ const ActiveCallScreen = ({ participantsMeta }: Props) => {
   // ─── Video call UI ───────────────────────────────────────────────────────
   return createPortal(
     <div className="fixed inset-0 bg-black flex flex-col" style={{ zIndex: 99999 }}>
-      <div className="flex-1 relative p-2">
+      {/* FIX: min-h-0 + overflow-hidden — prevents remote video's intrinsic
+          size from forcing this flex item taller than the viewport, which
+          was pushing the controls bar (and local preview) off-screen */}
+      <div className="flex-1 relative p-2 min-h-0 overflow-hidden">
         <div
           className={`grid gap-2 w-full h-full ${
             remoteUserIds.length <= 1
@@ -221,7 +224,11 @@ const ActiveCallScreen = ({ participantsMeta }: Props) => {
         </span>
       </div>
 
-      <div className="pb-6 pt-3 flex justify-center bg-black">
+      {/* FIX: shrink-0 — stops this bar from being compressed/squeezed by
+          the flex layout. relative z-10 isolate — creates its own stacking
+          context so the <video> element's hardware layer can never render
+          on top of it. */}
+      <div className="pb-6 pt-3 flex justify-center bg-black shrink-0 relative z-10 isolate">
         <CallControls
           isMuted={isMuted}
           isCameraOff={isCameraOff}
