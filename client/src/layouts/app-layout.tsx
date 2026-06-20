@@ -29,31 +29,22 @@ const AppLayout = () => {
       <AppWrapper>
         <div className="h-full flex">
 
-          {/* 
-            ChatList panel:
-            - Mobile: full width, chat open hone par hide
-            - Desktop: fixed width sidebar always visible
-          */}
+          {/* ChatList — mobile pe full screen, desktop pe fixed panel */}
           <div
             className={cn(
-              "w-full lg:w-80 xl:w-96 h-full flex-shrink-0",
-              "border-r border-border",
-              chatId ? "hidden lg:flex" : "flex"
+              "h-full flex-shrink-0 border-r border-border",
+              "w-full lg:w-80 xl:w-96",
+              chatId ? "hidden lg:flex lg:flex-col" : "flex flex-col"
             )}
           >
-            <div className="w-full h-full">
-              <ChatList />
-            </div>
+            <ChatList />
           </div>
 
-          {/* 
-            Chat window / outlet:
-            - Mobile: full width, sirf chat open hone par dikhao
-            - Desktop: baaki sari width le lo
-          */}
+          {/* Chat window — mobile pe full screen, desktop pe flex-1 */}
           <div
             className={cn(
-              "flex-1 h-full min-w-0",
+              "h-full min-w-0",
+              "flex-1",
               !chatId ? "hidden lg:flex" : "flex"
             )}
           >
@@ -65,10 +56,12 @@ const AppLayout = () => {
         </div>
       </AppWrapper>
 
-      {/* AI Chat Window — portal se render hota hai */}
       {showAiChat &&
         createPortal(
-          <div className="fixed inset-0 z-[9999] bg-background flex flex-col lg:left-[calc(44px+384px)]">
+          <div
+            style={{ left: "calc(var(--aside-width-mobile) + 0px)" }}
+            className="fixed inset-0 z-[9999] bg-background flex flex-col md:left-[calc(var(--aside-width-desktop)+0px)]"
+          >
             <AiChatWindow onClose={() => setShowAiChat(false)} />
           </div>,
           document.body

@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 
 html,
-hody {
+body {
   height: 100%;
   font-family: "DM Sans", serif !important;
 }
@@ -80,6 +80,10 @@ hody {
   --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
   --sidebar-border: oklch(0.92 0.004 286.32);
   --sidebar-ring: oklch(0.606 0.25 292.717);
+
+  /* ✅ Sidebar width variables */
+  --aside-width-mobile: 56px;
+  --aside-width-desktop: 44px;
 }
 
 .dark {
@@ -122,5 +126,33 @@ hody {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* ✅ Responsive layout classes */
+.aside-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: var(--aside-width-mobile);
+  z-index: 9999;
+  height: 100svh;
+}
+
+@media (min-width: 768px) {
+  .aside-bar {
+    width: var(--aside-width-desktop);
+  }
+}
+
+.main-content {
+  padding-left: var(--aside-width-mobile);
+  height: 100%;
+}
+
+@media (min-width: 768px) {
+  .main-content {
+    padding-left: var(--aside-width-desktop);
   }
 }

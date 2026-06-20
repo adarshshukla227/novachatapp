@@ -9,11 +9,8 @@ const AppWrapper = ({ children }: Props) => {
   return (
     <div className="h-full">
       <AsideBar />
-      {/* 
-        Mobile: sidebar w-14 (56px) → pl-14
-        Desktop: sidebar w-11 (44px) → pl-10 (Tailwind lg:pl-10)
-      */}
-      <main className="pl-14 md:pl-10 h-full">{children}</main>
+      {/* ✅ main-content class CSS se aati hai — sidebar ke barabar padding */}
+      <main className="main-content">{children}</main>
     </div>
   );
 };
