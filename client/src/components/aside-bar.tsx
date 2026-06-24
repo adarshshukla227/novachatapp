@@ -6,6 +6,8 @@ import Logo from "./logo";
 import { PROTECTED_ROUTES } from "@/routes/routes";
 import { Button } from "./ui/button";
 import { Moon, Sun, User } from "lucide-react";
+import { cn } from "@/lib/utils";
+import useChatId from "@/hooks/use-chat-id";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,16 +23,20 @@ const AsideBar = () => {
   const { theme, setTheme } = useTheme();
   const [showMyAccount, setShowMyAccount] = useState(false);
   const isOnline = isUserOnline(user?._id);
+  const chatId = useChatId();
 
   return (
     <>
-      <aside className="
-        w-10 shrink-0 h-full
-        bg-primary/85 shadow-sm
-        flex flex-col items-center
-        pt-2 pb-6 px-1
-        z-[9999]
-      ">
+      <aside
+        className={cn(
+          "w-10 shrink-0 h-full",
+          "bg-primary/85 shadow-sm",
+          "flex-col items-center",
+          "pt-2 pb-6 px-1",
+          "z-[9999]",
+          chatId ? "hidden lg:flex" : "flex"
+        )}
+      >
         <div className="w-full h-full flex flex-col items-center justify-between">
           <Logo
             url={PROTECTED_ROUTES.CHAT}
