@@ -2,7 +2,8 @@
 @import "tw-animate-css";
 
 html,
-body {
+body,
+#root {
   height: 100%;
   font-family: "DM Sans", serif !important;
 }
