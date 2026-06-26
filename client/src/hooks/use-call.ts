@@ -5,9 +5,37 @@ import { generateUUID } from "@/lib/helper";
 import { callSounds } from "@/lib/callSounds";
 import type { CallType, CallUIState, ActiveCallData, CallParticipantInfo } from "@/types/call.type";
 
+// ✅ UPDATED: added Metered.ca TURN servers alongside the existing Google
+// STUN servers. STUN alone only helps two peers discover their public
+// IP/port — it can't get through strict/symmetric NAT, which is common on
+// mobile carrier networks (CGNAT). That's why calls worked laptop<->phone
+// (one side had a more permissive NAT) but failed phone<->phone (both sides
+// behind strict carrier NAT). TURN relays the media through Metered's
+// server as a fallback whenever a direct peer-to-peer path can't be found.
 const ICE_SERVERS: RTCIceServer[] = [
   { urls: "stun:stun.l.google.com:19302" },
   { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun.relay.metered.ca:80" },
+  {
+    urls: "turn:global.relay.metered.ca:80",
+    username: "2fd840bfd46ca53fcf0410a6",
+    credential: "ykHiLVHmwwEOEZiN",
+  },
+  {
+    urls: "turn:global.relay.metered.ca:80?transport=tcp",
+    username: "2fd840bfd46ca53fcf0410a6",
+    credential: "ykHiLVHmwwEOEZiN",
+  },
+  {
+    urls: "turn:global.relay.metered.ca:443",
+    username: "2fd840bfd46ca53fcf0410a6",
+    credential: "ykHiLVHmwwEOEZiN",
+  },
+  {
+    urls: "turns:global.relay.metered.ca:443?transport=tcp",
+    username: "2fd840bfd46ca53fcf0410a6",
+    credential: "ykHiLVHmwwEOEZiN",
+  },
 ];
 
 interface PeerEntry {
@@ -41,13 +69,9 @@ interface CallState {
   _cleanup: () => void;
 }
 
-// ✅ FIX: track which socket.id listeners were registered for, instead of a
-// plain boolean. A plain boolean stayed `true` forever after the first
-// registration, so if the socket ever reconnected/was replaced (network
-// drop, server restart, Render free-tier sleep/wake, etc.) the NEW socket
-// never got its call:* listeners attached. That caused the caller's screen
-// to stay stuck on "Calling..." — the callee's socket was fine, but the
-// caller's new socket was silently listening to nothing.
+// ✅ Tracks which socket.id listeners were registered for (instead of a
+// plain boolean) so listeners re-attach correctly if the socket ever
+// reconnects/changes (e.g. after a Render free-tier sleep/wake cycle).
 let listenersInitializedForSocketId: string | null = null;
 
 export const useCall = create<CallState>()((set, get) => ({
@@ -204,10 +228,6 @@ export const useCall = create<CallState>()((set, get) => ({
       return;
     }
 
-    // ✅ FIX: compare against the current socket.id instead of a one-time
-    // boolean. This lets listeners re-attach whenever the socket instance
-    // actually changes (reconnect / replacement), while still avoiding
-    // duplicate registration on the *same* socket across re-renders.
     if (listenersInitializedForSocketId === socket.id) return;
     listenersInitializedForSocketId = socket.id;
 
