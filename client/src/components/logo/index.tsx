@@ -19,7 +19,7 @@ const Logo = ({
     <img src={logoSvg} alt="Whop" className={cn(imgClass)} />
     {showText && (
       <span className={cn("font-semibold text-lg leading-tight", textClass)}>
-        Whop.
+        Novachat.
       </span>
     )}
   </Link>
