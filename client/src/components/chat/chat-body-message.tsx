@@ -311,7 +311,7 @@ const ChatMessageBody = memo(({ message, onReply, onSmartReply, searchQuery }: P
           </div>
 
           {/* Action buttons */}
-          <div className="flex opacity-0 group-hover:opacity-100 transition-opacity gap-1 relative">
+          <div className="flex opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity gap-1 relative">
             <Button
               variant="outline"
               size="icon"
