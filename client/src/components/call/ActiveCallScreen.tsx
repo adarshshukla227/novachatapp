@@ -58,6 +58,13 @@ const RemoteVideoTile = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // ✅ FIX: added `videoEnabled` to the dependency array.
+  // The <video> element is conditionally rendered below (mounted/unmounted
+  // based on `stream && videoEnabled`), so when the remote user turns their
+  // camera back on, a BRAND NEW <video> element is mounted. Without
+  // `videoEnabled` here, this effect only re-ran when `stream` itself
+  // changed — which it doesn't on a simple toggle — so the new <video>
+  // element's srcObject was never assigned, leaving it black.
   useEffect(() => {
     if (videoRef.current && stream) {
       videoRef.current.srcObject = stream;
@@ -65,7 +72,7 @@ const RemoteVideoTile = ({
     if (audioRef.current && stream) {
       audioRef.current.srcObject = stream;
     }
-  }, [stream]);
+  }, [stream, videoEnabled]);
 
   return (
     <div className="relative w-full h-full bg-zinc-900 rounded-xl overflow-hidden flex items-center justify-center">
@@ -105,11 +112,18 @@ const ActiveCallScreen = ({ participantsMeta }: Props) => {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const elapsed = useElapsedSeconds(callStartedAt);
 
+  // ✅ FIX: added `isCameraOff` to the dependency array.
+  // The local preview <video> below is also conditionally rendered
+  // ({!isCameraOff ? <video/> : <div>Camera off</div>}), so toggling the
+  // camera back on mounts a NEW <video> element. Without `isCameraOff`
+  // here, this effect only re-ran when `localStream` changed — which it
+  // doesn't on a simple toggle (it's the same MediaStream object the whole
+  // call) — so the new element's srcObject was never set, leaving it black.
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
     }
-  }, [localStream]);
+  }, [localStream, isCameraOff]);
 
   if (!callData) return null;
 

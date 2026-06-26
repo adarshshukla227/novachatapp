@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useChat } from "@/hooks/use-chat";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Button } from "../ui/button";
@@ -24,11 +24,24 @@ export const NewChatPopover = memo(() => {
   const [groupName, setGroupName] = useState("");
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
+  // ✅ NEW: search query for the "New Chat" name search box
+  const [searchQuery, setSearchQuery] = useState("");
+
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAllUsers();
   }, [fetchAllUsers]);
+
+  // ✅ NEW: filter users by name whenever searchQuery changes.
+  // Only applies in the non-group ("New Chat") search box — group mode
+  // reuses the same input for the group name instead.
+  const filteredUsers = useMemo(() => {
+    if (!users) return users;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter((u) => u.name?.toLowerCase().includes(q));
+  }, [users, searchQuery]);
 
   const toggleUserSelection = (id: string) => {
     setSelectedUsers((prev) =>
@@ -44,6 +57,7 @@ export const NewChatPopover = memo(() => {
     setIsGroupMode(false);
     setGroupName("");
     setSelectedUsers([]);
+    setSearchQuery(""); // ✅ clear search when popover resets
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -113,9 +127,13 @@ export const NewChatPopover = memo(() => {
 
           <InputGroup>
             <InputGroupInput
-              value={isGroupMode ? groupName : ""}
+              // ✅ FIX: in non-group mode this now shows & drives searchQuery
+              // instead of being a permanently-empty, non-interactive input
+              value={isGroupMode ? groupName : searchQuery}
               onChange={
-                isGroupMode ? (e) => setGroupName(e.target.value) : undefined
+                isGroupMode
+                  ? (e) => setGroupName(e.target.value)
+                  : (e) => setSearchQuery(e.target.value) // ✅ FIX: was `undefined`
               }
               placeholder={isGroupMode ? "Enter group name" : "Search name"}
             />
@@ -132,27 +150,36 @@ export const NewChatPopover = memo(() => {
         >
           {isUsersLoading ? (
             <Spinner className="w-6 h-6" />
-          ) : users && users?.length === 0 ? (
-            <div className="text-center text-muted-foreground">
-              No users found
-            </div>
           ) : !isGroupMode ? (
+            // ✅ Non-group ("New Chat") list now uses filteredUsers
             <>
               <NewGroupItem
                 disabled={isCreatingChat}
                 onClick={() => setIsGroupMode(true)}
               />
-              {users?.map((user) => (
-                <ChatUserItem
-                  key={user._id}
-                  user={user}
-                  isLoading={loadingUserId === user._id}
-                  disabled={loadingUserId !== null}
-                  onClick={handleCreateChat}
-                />
-              ))}
+              {filteredUsers && filteredUsers.length === 0 ? (
+                <div className="text-center text-muted-foreground py-4 text-sm">
+                  No users found
+                </div>
+              ) : (
+                filteredUsers?.map((user) => (
+                  <ChatUserItem
+                    key={user._id}
+                    user={user}
+                    isLoading={loadingUserId === user._id}
+                    disabled={loadingUserId !== null}
+                    onClick={handleCreateChat}
+                  />
+                ))
+              )}
             </>
+          ) : users && users?.length === 0 ? (
+            <div className="text-center text-muted-foreground">
+              No users found
+            </div>
           ) : (
+            // Group mode still shows the full, unfiltered user list
+            // (the search box here is repurposed for the group name)
             users?.map((user) => (
               <GroupUserItem
                 key={user._id}
@@ -191,7 +218,7 @@ const UserAvatar = memo(({ user }: { user: UserType }) => (
     <AvatarWithBadge name={user.name} src={user.avatar ?? ""} />
     <div className="flex-1 min-w-0">
       <h5 className="text-[13.5px] font-medium truncate">{user.name}</h5>
-      <p className="text-xs text-muted-foreground">Hey there! I'm using whop</p>
+      <p className="text-xs text-muted-foreground">Hey there! I'm using Novachat</p>
     </div>
   </>
 ));
