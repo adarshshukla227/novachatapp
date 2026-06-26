@@ -33,7 +33,7 @@ const AsideBar = () => {
           "bg-primary/85 shadow-sm",
           "flex-col items-center",
           "pt-2 pb-6 px-1",
-          "z-[9999]",
+          "z-30",
           chatId ? "hidden lg:flex" : "flex"
         )}
       >
