@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { X, Crown, LogOut, Camera, Trash2, Search, Pencil, Check, UserPlus } from "lucide-react";
 import AvatarWithBadge from "../avatar-with-badge";
 import { useAuth } from "@/hooks/use-auth";
+import { useChat } from "@/hooks/use-chat";
 import { toast } from "sonner";
 
 interface Member {
@@ -27,6 +28,7 @@ const GroupInfoPanel = ({
   onLeaveSuccess,
 }: Props) => {
   const { user } = useAuth();
+  const { updateGroupInfo } = useChat();
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -122,6 +124,10 @@ const GroupInfoPanel = ({
         body: JSON.stringify(updates),
       });
       if (!res.ok) throw new Error("Failed to update");
+
+      // ✅ Global store ko bhi sync karo — taaki ChatHeader aur chat list turant update ho
+      updateGroupInfo(chatId, updates);
+
       toast.success("Group updated successfully");
     } catch {
       toast.error("Failed to update group info");
@@ -269,12 +275,14 @@ const GroupInfoPanel = ({
   );
 
   return (
-    <div className="fixed inset-0 z-[200] flex justify-end">
+    // FIX #1: Outer wrapper with overflow-hidden
+    <div className="fixed inset-0 z-[200] flex justify-end overflow-hidden">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
 
-      <div className="relative w-80 h-screen bg-card border-l border-border shadow-2xl flex flex-col z-10 overflow-y-auto">
+      {/* FIX #2: Panel container - responsive width and overflow-hidden */}
+      <div className="relative w-full max-w-xs sm:max-w-sm h-screen bg-card border-l border-border shadow-2xl flex flex-col z-10 overflow-hidden">
 
-        {/* Header */}
+        {/* Header - sticky */}
         <div className="flex items-center gap-3 px-4 h-14 border-b border-border bg-primary shrink-0 sticky top-0 z-10">
           <button onClick={onClose} className="text-primary-foreground hover:opacity-70 transition">
             <X size={20} />
@@ -282,8 +290,8 @@ const GroupInfoPanel = ({
           <h2 className="font-semibold text-primary-foreground text-sm">Group Info</h2>
         </div>
 
-        {/* Avatar + Name + Description */}
-        <div className="flex flex-col items-center px-4 py-6 border-b border-border gap-3">
+        {/* FIX #4: Avatar section with reduced padding */}
+        <div className="flex flex-col items-center px-3 py-4 border-b border-border gap-3">
 
           {/* Avatar */}
           <div className="relative">
@@ -425,7 +433,7 @@ const GroupInfoPanel = ({
 
         {/* Add member panel */}
         {showAddMember && (
-          <div className="px-4 py-3 border-b border-border">
+          <div className="px-4 py-3 border-b border-border shrink-0">
             <div className="flex items-center gap-2 mb-3">
               <h4 className="text-sm font-semibold flex-1">Add Members</h4>
               <button
@@ -502,7 +510,7 @@ const GroupInfoPanel = ({
 
         {/* Member search bar */}
         {showMemberSearch && (
-          <div className="px-4 py-3 border-b border-border">
+          <div className="px-4 py-3 border-b border-border shrink-0">
             <input
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
@@ -513,8 +521,8 @@ const GroupInfoPanel = ({
           </div>
         )}
 
-        {/* Members list */}
-        <div className="flex-1">
+        {/* FIX #3: Members list with overflow-y-auto and min-h-0 */}
+        <div className="flex-1 overflow-y-auto min-h-0">
           <p className="px-4 pt-4 pb-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             {filteredMembers.length} Members
           </p>
@@ -552,7 +560,7 @@ const GroupInfoPanel = ({
 
         {/* Clear chat confirm */}
         {showClearConfirm && (
-          <div className="px-4 py-4 border-t border-border">
+          <div className="px-4 py-4 border-t border-border shrink-0">
             <p className="text-sm text-muted-foreground text-center mb-3">
               Clear all messages in this chat?
             </p>

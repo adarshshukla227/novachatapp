@@ -47,6 +47,12 @@ interface ChatState {
   updateMessageDelivered: (messageId: string) => void;
  
   clearUnreadCount: (chatId: string) => void;
+
+  // ✅ Naya function — group ka avatar/name/description global state mein sync karega
+  updateGroupInfo: (
+    chatId: string,
+    updates: Partial<Pick<ChatType, "groupName" | "groupDescription" | "groupAvatar">>
+  ) => void;
 }
  
 export const useChat = create<ChatState>()((set, get) => ({
@@ -353,5 +359,20 @@ export const useChat = create<ChatState>()((set, get) => ({
       ),
     }));
   },
+
+  // ✅ Group avatar/name/description update hone par chats list aur open chat — dono jagah sync karo
+  updateGroupInfo: (chatId, updates) => {
+    set((state) => ({
+      chats: state.chats.map((c) =>
+        c._id === chatId ? { ...c, ...updates } : c
+      ),
+      singleChat:
+        state.singleChat?.chat._id === chatId
+          ? {
+              ...state.singleChat,
+              chat: { ...state.singleChat.chat, ...updates },
+            }
+          : state.singleChat,
+    }));
+  },
 }));
- 
