@@ -19,7 +19,7 @@ const AvatarWithBadge = ({
   size = "w-9 h-9",
   className,
 }: Props) => {
-  const avatar = isGroup ? groupImg : src || "";
+  const avatar = src || (isGroup ? groupImg : "");
 
   return (
     <div
