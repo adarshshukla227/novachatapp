@@ -9,7 +9,9 @@ export type ChatType = {
   createdBy: string;
   groupName?: string;
   groupAdmin?: string;
-  unreadCount?: number; // NEW
+  groupDescription?: string; // ✅ ADDED
+  groupAvatar?: string;      // ✅ ADDED
+  unreadCount?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -46,4 +48,3 @@ export type CreateMessageType = {
   image?: string;
   replyTo?: MessageType | null;
 };
- 
