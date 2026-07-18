@@ -1,12 +1,13 @@
 import { getOtherUserAndGroup } from "@/lib/helper";
 import { PROTECTED_ROUTES } from "@/routes/routes";
 import type { ChatType } from "@/types/chat.type";
-import { ArrowLeft, Search, X, Phone, Video } from "lucide-react";
+import { ArrowLeft, Search, X, Phone, Video, ClipboardList } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AvatarWithBadge from "../avatar-with-badge";
 import { useState, useEffect, useRef } from "react";
 import GroupInfoPanel from "./GroupInfoPanel";
 import UserProfileDialog from "../user-profile-dialog";
+import AssignmentTracker from "./AssignmentTracker";
 import type { UserType } from "@/types/auth.type";
 import { useSocket } from "@/hooks/use-socket";
 import { useCall } from "@/hooks/use-call";
@@ -32,6 +33,7 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle, onSe
   const [isTyping, setIsTyping] = useState(false);
   const [showGroupInfo, setShowGroupInfo] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
+  const [showAssignments, setShowAssignments] = useState(false);
 
   // Search state
   const [showSearch, setShowSearch] = useState(false);
@@ -122,7 +124,6 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle, onSe
     ? "text-green-500"
     : "text-muted-foreground";
 
-  // Call is only allowed when idle (not already in a call)
   const canCall = uiState === "idle";
 
   const handleVoiceCall = () => {
@@ -189,6 +190,21 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle, onSe
             <Video size={17} />
           </button>
 
+          {/* Assignment Tracker button — sirf groups mein */}
+          {isGroup && (
+            <button
+              onClick={() => setShowAssignments((p) => !p)}
+              title="Assignments"
+              className={`w-9 h-9 rounded-full flex items-center justify-center transition shrink-0 ${
+                showAssignments
+                  ? "bg-primary text-primary-foreground"
+                  : "hover:bg-muted text-muted-foreground"
+              }`}
+            >
+              <ClipboardList size={17} />
+            </button>
+          )}
+
           {/* Search toggle button */}
           <button
             onClick={() => setShowSearch((p) => !p)}
@@ -238,6 +254,13 @@ const ChatHeader = ({ chat, currentUserId, onLeaveGroup, onGroupInfoToggle, onSe
           memberCount={chat.participants?.length ?? 0}
           onClose={closePanel}
           onLeaveSuccess={handleLeaveSuccess}
+        />
+      )}
+
+      {showAssignments && isGroup && (
+        <AssignmentTracker
+          chatId={chat._id}
+          onClose={() => setShowAssignments(false)}
         />
       )}
 
