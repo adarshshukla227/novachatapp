@@ -5,15 +5,15 @@ import {
   toggleAssignmentController,
   deleteAssignmentController,
 } from "../controllers/assignment.controller";
-import { authMiddleware } from "../middlewares/auth.middleware";
+import { passportAuthenticateJwt } from "../config/passport.config";
 
 const router = Router();
 
-router.use(authMiddleware);
-
-router.post("/:chatId", createAssignmentController);
-router.get("/:chatId", getAssignmentsController);
-router.patch("/:assignmentId/toggle", toggleAssignmentController);
-router.delete("/:assignmentId", deleteAssignmentController);
+router
+  .use(passportAuthenticateJwt)
+  .post("/:chatId", createAssignmentController)
+  .get("/:chatId", getAssignmentsController)
+  .patch("/:assignmentId/toggle", toggleAssignmentController)
+  .delete("/:assignmentId", deleteAssignmentController);
 
 export default router;
