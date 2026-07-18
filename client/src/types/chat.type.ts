@@ -9,8 +9,8 @@ export type ChatType = {
   createdBy: string;
   groupName?: string;
   groupAdmin?: string;
-  groupDescription?: string; // ✅ ADDED
-  groupAvatar?: string;      // ✅ ADDED
+  groupDescription?: string;
+  groupAvatar?: string;
   unreadCount?: number;
   createdAt: string;
   updatedAt: string;
@@ -47,4 +47,17 @@ export type CreateMessageType = {
   content?: string;
   image?: string;
   replyTo?: MessageType | null;
+};
+
+// ✅ Assignment types
+export type AssignmentType = {
+  _id: string;
+  chatId: string;
+  title: string;
+  subject: string;
+  deadline: string;
+  createdBy: UserType;
+  completedBy: UserType[];
+  createdAt: string;
+  updatedAt: string;
 };
