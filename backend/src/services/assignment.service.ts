@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import AssignmentModel from "../models/assignment.model";
 import { NotFoundException, UnauthorizedException } from "../utils/app-error";
 
@@ -41,13 +42,14 @@ export const toggleAssignmentCompleteService = async (
       (id) => id.toString() !== userId
     );
   } else {
-    assignment.completedBy.push(new (require("mongoose").Types.ObjectId)(userId));
+    assignment.completedBy.push(new mongoose.Types.ObjectId(userId));
   }
 
   await assignment.save();
-  return assignment
+  const updated = await AssignmentModel.findById(assignmentId)
     .populate("createdBy", "name avatar")
-    .then((a) => a.populate("completedBy", "name avatar"));
+    .populate("completedBy", "name avatar");
+  return updated;
 };
 
 export const deleteAssignmentService = async (
